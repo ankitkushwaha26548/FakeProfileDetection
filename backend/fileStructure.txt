@@ -1,0 +1,64 @@
+backend/
+│
+├── config/
+│   ├── db.js                # MongoDB connection
+│   └── cloudinary.js        # (optional) image upload config  --------------
+│
+├── models/                  # Database schemas
+│   ├── User.js              # Auth users
+│   ├── Profile.js           # User profile data
+│   ├── Post.js              # Social posts
+│   ├── Activity.js          # Behavior tracking
+│   ├── RiskScore.js         # Fake detection results
+│   └── LoginLog.js          # IP/device logs (advanced detection) 
+│
+├── controllers/             # Business logic
+│   ├── authController.js
+│   ├── profileController.js
+│   ├── postController.js
+│   ├── activityController.js 
+│   ├── detectionController.js
+│   └── adminController.js  
+│
+├── routes/                  # API routes
+│   ├── authRoutes.js
+│   ├── profileRoutes.js
+│   ├── postRoutes.js
+│   ├── activityRoutes.js   
+│   ├── detectionRoutes.js
+│   └── adminRoutes.js  
+│
+├── middleware/              # Middlewares
+│   ├── authMiddleware.js    # JWT auth
+│   ├── adminMiddleware.js   # Admin protection   
+│   ├── rateLimiter.js       # Anti-bot protection  
+│   └── errorHandler.js      # Global error handler  
+│
+├── utils/                   # Core logic
+│   ├── fakeDetection.js     # Detection engine
+│   ├── activityLogger.js    # Behavior logger
+│   ├── profileScore.js      # Profile scoring
+│   ├── riskCalculator.js    # Risk algorithm 
+│   ├── ipTracker.js         # IP analysis  
+│   └── anomalyDetector.js   # Behavior anomaly logic 
+│
+├── services/                # External services
+│   ├── mailService.js       # Email service
+│   └── notification.js      # Alerts
+│
+├── logs/                    # System logs
+│   ├── access.log
+│   └── error.log
+│
+├── tests/                   # Testing
+│   ├── auth.test.js
+│   ├── detection.test.js
+│   └── api.test.js
+│
+├── sockets/                 # Realtime (future)
+│   └── socket.js
+│
+├── .env                     # Environment variables
+├── server.js                # Main server
+├── package.json
+└── README.md
