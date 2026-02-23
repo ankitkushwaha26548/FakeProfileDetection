@@ -1,73 +1,92 @@
-import React, { useState } from 'react';
-import { 
-  Users, 
-  UserX, 
-  AlertTriangle, 
-  UserCheck,
-  Shield,
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  Eye,
-  Clock,
-  MapPin,
-  Terminal,
-  Search,
-  Filter,
-  Download,
-  RefreshCw,
-  Bell,
-  Settings
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Users, UserX, AlertTriangle, UserCheck, Shield, Activity,
+  TrendingUp, TrendingDown, Eye, Clock, MapPin, Terminal,
+  Search, Filter, Download, RefreshCw, Bell, Settings
 } from 'lucide-react';
+import * as adminApi from '../api/adminApi';
+import * as detectionApi from '../api/detectionApi';
+import * as activityApi from '../api/activityApi';
 
 function Dashboard() {
   const [timeRange, setTimeRange] = useState('24h');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    fakeUsers: 0,
+    suspiciousUsers: 0,
+    activeUsers: 0,
+    totalActivities: 0,
+    trends: { total: 0, fake: 0, suspicious: 0, active: 0 },
+  });
+  const [recentDetections, setRecentDetections] = useState([]);
+  const [activityStats, setActivityStats] = useState(null);
 
-  // Stats Data
-  const stats = {
-    totalUsers: 12845,
-    fakeUsers: 234,
-    suspiciousUsers: 567,
-    activeUsers: 8934,
-    trends: {
-      total: +12.5,
-      fake: +8.3,
-      suspicious: -5.2,
-      active: +15.8
+  const load = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, risksRes, activityRes] = await Promise.all([
+        adminApi.getDashboardStats(),
+        detectionApi.getAllRiskyUsers().catch(() => ({ data: [] })),
+        activityApi.getActivityStats().catch(() => ({ data: null })),
+      ]);
+      const s = statsRes.data || {};
+      setStats({
+        totalUsers: s.totalUsers ?? 0,
+        fakeUsers: s.fake ?? 0,
+        suspiciousUsers: s.suspicious ?? 0,
+        activeUsers: s.genuine ?? 0,
+        totalActivities: s.totalActivities ?? 0,
+        trends: { total: 0, fake: 0, suspicious: 0, active: 0 },
+      });
+      const risks = Array.isArray(risksRes.data) ? risksRes.data : [];
+      setRecentDetections(
+        risks.slice(0, 8).map((r, i) => ({
+          id: r._id || i,
+          user: r.user?.name || r.user?.email || r.user?._id || 'Unknown',
+          risk: r.level || 'GENUINE',
+          reason: (r.reasons && r.reasons[0]) || 'Risk detected',
+          time: r.lastUpdated ? new Date(r.lastUpdated).toLocaleString() : '',
+          severity: r.level === 'FAKE' ? 'HIGH' : r.level === 'SUSPICIOUS' ? 'MEDIUM' : 'LOW',
+        }))
+      );
+      if (activityRes?.data) setActivityStats(activityRes.data);
+    } catch (_) {
+      setStats({
+        totalUsers: 0,
+        fakeUsers: 0,
+        suspiciousUsers: 0,
+        activeUsers: 0,
+        totalActivities: 0,
+        trends: { total: 0, fake: 0, suspicious: 0, active: 0 },
+      });
+      setRecentDetections([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Recent Detections
-  const recentDetections = [
-    { id: 1, user: "user_8234", risk: "FAKE", reason: "Bot-like behavior", time: "2m ago", severity: "HIGH" },
-    { id: 2, user: "user_7621", risk: "SUSPICIOUS", reason: "Rapid posting", time: "5m ago", severity: "MEDIUM" },
-    { id: 3, user: "user_9102", risk: "FAKE", reason: "IP anomaly detected", time: "8m ago", severity: "HIGH" },
-    { id: 4, user: "user_5483", risk: "SUSPICIOUS", reason: "Multiple devices", time: "12m ago", severity: "MEDIUM" },
-    { id: 5, user: "user_3294", risk: "FAKE", reason: "Profile incomplete", time: "15m ago", severity: "HIGH" }
-  ];
+  useEffect(() => {
+    load();
+  }, []);
 
-  // Login Activity (Last 24h)
-  const loginActivity = [
-    { hour: '00:00', count: 45 },
-    { hour: '03:00', count: 23 },
-    { hour: '06:00', count: 89 },
-    { hour: '09:00', count: 234 },
-    { hour: '12:00', count: 456 },
-    { hour: '15:00', count: 389 },
-    { hour: '18:00', count: 512 },
-    { hour: '21:00', count: 298 }
-  ];
-
-  // Geographic Distribution
-  const topLocations = [
-    { country: "United States", count: 4523, percentage: 35.2 },
-    { country: "United Kingdom", count: 2134, percentage: 16.6 },
-    { country: "Germany", count: 1876, percentage: 14.6 },
-    { country: "India", count: 1543, percentage: 12.0 },
-    { country: "Canada", count: 1098, percentage: 8.5 }
-  ];
-
-  const maxActivity = Math.max(...loginActivity.map(d => d.count));
+  const loginActivity = activityStats
+    ? [
+        { hour: 'Logins', count: activityStats.logins ?? 0 },
+        { hour: 'Posts', count: activityStats.posts ?? 0 },
+        { hour: 'Likes', count: activityStats.likes ?? 0 },
+        { hour: 'Comments', count: activityStats.comments ?? 0 },
+        { hour: 'Total', count: activityStats.total ?? 0 },
+      ]
+    : [{ hour: '—', count: 0 }];
+  const maxActivity = Math.max(1, ...loginActivity.map((d) => d.count));
+  const topLocationsRaw = [
+    { country: 'Genuine', count: stats.activeUsers, percentage: stats.totalUsers ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0 },
+    { country: 'Suspicious', count: stats.suspiciousUsers, percentage: stats.totalUsers ? Math.round((stats.suspiciousUsers / stats.totalUsers) * 100) : 0 },
+    { country: 'Fake', count: stats.fakeUsers, percentage: stats.totalUsers ? Math.round((stats.fakeUsers / stats.totalUsers) * 100) : 0 },
+  ].filter((l) => l.count > 0);
+  const topLocations = topLocationsRaw.length ? topLocationsRaw : [{ country: 'No data', count: 0, percentage: 0 }];
 
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-900 via-slate-900 to-black">
@@ -126,17 +145,23 @@ function Dashboard() {
               <Filter className="w-4 h-4" />
               Filter
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition-colors text-sm">
+            <button onClick={load} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg text-white text-sm">
               <RefreshCw className="w-4 h-4" />
-              Refresh
+              {loading ? 'Loading...' : 'Refresh'}
             </button>
+            <a href="/admin/alogin" className="text-gray-400 hover:text-white text-sm">Logout</a>
           </div>
         </div>
       </div>
 
+      {loading && !stats.totalUsers && !recentDetections.length ? (
+        <div className="p-6 flex justify-center">
+          <p className="text-indigo-400">Loading dashboard...</p>
+        </div>
+      ) : null}
+
       {/* Main Content */}
       <div className="p-6 space-y-6">
-        
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           

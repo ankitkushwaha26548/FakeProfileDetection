@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import * as authApi from '../api/authApi';
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,18 +21,31 @@ export default function RegisterPage() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match!");
+      setError("Passwords don't match!");
       return;
     }
-    
-    console.log('Register submitted:', formData);
-    // Add your registration API call here
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await authApi.registerUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      localStorage.setItem('token', data.token);
+      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/user/feed', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -123,6 +141,7 @@ export default function RegisterPage() {
         {formData.confirmPassword && formData.password !== formData.confirmPassword && (
           <p className="text-red-500 text-xs mt-2 text-left pl-6">Passwords don't match</p>
         )}
+        {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
         {/* Terms & Conditions */}
         <div className="mt-5 text-left">
@@ -148,17 +167,14 @@ export default function RegisterPage() {
         {/* Submit Button */}
         <button 
           type="submit" 
-          className="mt-2 w-full h-11 rounded-full text-white bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/50 hover:shadow-purple-600/60 transform hover:scale-[1.02]"
+          disabled={loading}
+          className="mt-2 w-full h-11 rounded-full text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
         >
-          Sign Up
+          {loading ? 'Creating account...' : 'Sign Up'}
         </button>
 
-        {/* Sign Up Link */}
         <p className="text-gray-500 text-sm mt-3 mb-11">
-          Already have an account? 
-          <a className="text-indigo-500 hover:text-purple-600 transition-colors font-medium ml-1" href="/login">
-            Login
-          </a>
+          Already have an account? <Link className="text-indigo-500 font-medium" to="/user/login">Login</Link>
         </p>
       </form>
 

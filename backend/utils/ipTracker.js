@@ -1,6 +1,7 @@
-const LoginLog = require("../models/LoginLog");
+import LoginLog from '../models/LoginLog.js'
 
-module.exports = async function ipTracker(userId, ip) {
+
+export default async function ipTracker(userId, ip) {
   const logs = await LoginLog.find({ user: userId }).sort({ createdAt: -1 }).limit(10);
 
   let risk = "LOW";

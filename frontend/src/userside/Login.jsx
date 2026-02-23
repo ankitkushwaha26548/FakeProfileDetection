@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import * as authApi from '../api/authApi';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -13,12 +18,23 @@ export default function LoginPage() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login submitted:', formData);
-    // Add your login API call here
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await authApi.loginUser(formData);
+      localStorage.setItem('token', data.token);
+      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/user/feed', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,27 +89,21 @@ export default function LoginPage() {
           </button>                 
         </div>
 
-        {/* Forgot Password */}
-        <div className="mt-5 text-left text-indigo-500">
-          <a className="text-sm hover:text-purple-600 transition-colors" href="/forgot-password">
-            Forgot password?
-          </a>
-        </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
         {/* Submit Button */}
         <button 
           type="submit" 
-          className="mt-2 w-full h-11 rounded-full text-white bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/50 hover:shadow-purple-600/60 transform hover:scale-[1.02]"
+          disabled={loading}
+          className="mt-4 w-full h-11 rounded-full text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-all"
         >
-          Login
+          {loading ? 'Signing in...' : 'Login'}
         </button>
 
         {/* Sign Up Link */}
         <p className="text-gray-500 text-sm mt-3 mb-11">
-          Don't have an account? 
-          <a className="text-indigo-500 hover:text-purple-600 transition-colors font-medium ml-1" href="/register">
-            Sign up
-          </a>
+          Don't have an account?{' '}
+          <Link className="text-indigo-500 hover:text-purple-600 font-medium" to="/user/register">Sign up</Link>
         </p>
       </form>
 

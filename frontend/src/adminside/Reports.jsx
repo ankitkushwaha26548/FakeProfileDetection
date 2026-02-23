@@ -1,34 +1,27 @@
-import React, { useState } from 'react';
-import { 
-  Download,
-  FileText,
-  TrendingUp,
-  MapPin,
-  Activity,
-  Shield,
-  Clock,
-  AlertTriangle,
-  Eye,
-  Calendar,
-  Wifi,
-  Smartphone,
-  BarChart3,
-  LineChart,
-  PieChart,
-  Search,
-  Filter,
-  ChevronDown,
-  FileDown,
-  Printer,
-  Share2
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Download, FileText, TrendingUp, MapPin, Activity, Shield, Clock,
+  AlertTriangle, Eye, Calendar, Wifi, Smartphone, BarChart3, LineChart, PieChart,
+  Search, Filter, ChevronDown, FileDown, Printer, Share2
 } from 'lucide-react';
+import * as adminApi from '../api/adminApi';
 
 function Reports() {
   const [selectedUser, setSelectedUser] = useState('user_8234');
   const [reportType, setReportType] = useState('full');
   const [dateRange, setDateRange] = useState('7d');
+  const [loginLogs, setLoginLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
 
-  // Sample Report Data
+  useEffect(() => {
+    adminApi.getLoginLogs()
+      .then((res) => setLoginLogs(Array.isArray(res.data) ? res.data.slice(0, 50) : []))
+      .catch(() => setLoginLogs([]))
+      .finally(() => setLoadingLogs(false));
+  }, []);
+
+  // Sample Report Data (template)
   const reportData = {
     user: {
       id: 'user_8234',
@@ -170,7 +163,8 @@ function Reports() {
                 <FileDown className="w-4 h-4" />
                 Export PDF
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition-colors text-sm">
+              <Link to="/" className="text-gray-400 hover:text-white text-sm">Dashboard</Link>
+              <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white text-sm">
                 <Download className="w-4 h-4" />
                 Download Report
               </button>
@@ -180,7 +174,26 @@ function Reports() {
       </div>
 
       <div className="p-6 space-y-6">
-        
+        <div className="bg-gray-900/50 border border-indigo-500/20 rounded-2xl p-6">
+          <h3 className="text-lg font-bold text-white mb-4">Recent login activity</h3>
+          {loadingLogs ? <p className="text-gray-400">Loading...</p> : loginLogs.length === 0 ? <p className="text-gray-400">No login logs.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-gray-400 border-b border-gray-700"><th className="py-2 pr-4">User</th><th className="py-2 pr-4">IP</th><th className="py-2 pr-4">Device</th><th className="py-2">Date</th></tr></thead>
+                <tbody>
+                  {loginLogs.map((log, i) => (
+                    <tr key={log._id || i} className="border-b border-gray-800">
+                      <td className="py-2 text-white">{log.user?.name || log.user?.email || '—'}</td>
+                      <td className="py-2 text-gray-300 font-mono">{log.ip || '—'}</td>
+                      <td className="py-2 text-gray-300">{log.device ? String(log.device).slice(0, 40) : '—'}</td>
+                      <td className="py-2 text-gray-400">{log.createdAt ? new Date(log.createdAt).toLocaleString() : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
         {/* Report Summary Header */}
         <div className="bg-linear-to-r from-red-900/30 to-orange-900/30 backdrop-blur-xl border-2 border-red-500/30 rounded-2xl p-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">

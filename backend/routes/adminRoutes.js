@@ -1,23 +1,15 @@
 import express from "express";
-import auth from "../middleware/auth.js";
-import admin from "../middleware/admin.js";
-
+import protect from "../middleware/authMiddleware.js";
+import adminMiddleware from "../middleware/adminMiddleware.js";
+import { getDashboardStats, getUsersWithRisk, getFakeUsers, getSuspiciousUsers, getLoginLogs, flagUser } from "../controllers/adminController.js";
 
 const router = express.Router();
-const {
-  getDashboardStats,
-  getUsersWithRisk,
-  getFakeUsers,
-  getSuspiciousUsers,
-  getLoginLogs,
-  flagUser
-} = require("../controllers/adminController");
 
-router.get("/stats", auth, admin, getDashboardStats);
-router.get("/users", auth, admin, getUsersWithRisk);
-router.get("/fake", auth, admin, getFakeUsers);
-router.get("/suspicious", auth, admin, getSuspiciousUsers);
-router.get("/logs", auth, admin, getLoginLogs);
-router.post("/flag/:userId", auth, admin, flagUser);
+router.get("/stats", protect, adminMiddleware, getDashboardStats);
+router.get("/users", protect, adminMiddleware, getUsersWithRisk);
+router.get("/fake", protect, adminMiddleware, getFakeUsers);
+router.get("/suspicious", protect, adminMiddleware, getSuspiciousUsers);
+router.get("/logs", protect, adminMiddleware, getLoginLogs);
+router.post("/flag/:userId", protect, adminMiddleware, flagUser);
 
 export default router;

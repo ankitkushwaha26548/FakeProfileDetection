@@ -36,7 +36,8 @@ export const registerUser = async (req, res) => {
         user: {
             id: user._id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            role: user.role
         }
     });
     } catch (err) {
@@ -71,7 +72,8 @@ export const loginUser = async (req, res) => {
             user: {
                 id: user._id,
                 name: user.name,
-                email: user.email
+                email: user.email,
+                role: user.role
             }
         });
         
@@ -90,6 +92,16 @@ export const loginUser = async (req, res) => {
                 userAgent: req.headers['user-agent']
         });
 
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Get current user (protected)
+export const getMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        res.json(user);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

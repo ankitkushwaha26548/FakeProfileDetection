@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Shield, Lock, Mail, AlertTriangle, Terminal } from 'lucide-react';
+import * as authApi from '../api/authApi';
 
 function AdminLogin() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,12 +19,28 @@ function AdminLogin() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Admin login:', formData);
-    // Add your admin login API call here
+    setError('');
+    setLoading(true);
+    try {
+      const { data } = await authApi.loginUser({ email: formData.email, password: formData.password });
+      if (data.user?.role !== 'admin') {
+        setError('Admin access only. Use admin credentials.');
+        setLoading(false);
+        return;
+      }
+      localStorage.setItem('token', data.token);
+      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -122,10 +143,10 @@ function AdminLogin() {
               </div>
             </div>
 
-            {/* Security Code */}
+            {/* Security Code (optional for demo) */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-300 font-mono uppercase tracking-wider">
-                2FA Security Code
+                2FA Security Code (optional)
               </label>
               <div className="relative group">
                 <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
@@ -136,20 +157,21 @@ function AdminLogin() {
                   onChange={handleChange}
                   placeholder="000000"
                   maxLength="6"
-                  required
                   className="w-full pl-12 pr-4 py-3.5 bg-gray-800/50 border border-indigo-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono tracking-widest text-center"
                 />
-                <div className="absolute inset-0 bg-indigo-500/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
               </div>
             </div>
+
+            {error && <p className="text-red-400 text-sm">{error}</p>}
 
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-4 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-lg shadow-lg shadow-indigo-500/50 hover:shadow-indigo-600/60 transform hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-2 uppercase tracking-wider"
+              disabled={loading}
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-lg flex items-center justify-center gap-2 uppercase tracking-wider"
             >
               <Shield className="w-5 h-5" />
-              Access Admin Panel
+              {loading ? 'Verifying...' : 'Access Admin Panel'}
             </button>
 
             {/* Security Info */}

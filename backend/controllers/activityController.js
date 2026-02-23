@@ -30,7 +30,7 @@ export const getActivityStats = async (req, res) => {
   try {
     const total = await Activity.countDocuments();
     const posts = await Activity.countDocuments({ type: "POST" });
-    const likes = await Activity.countDocuments({ type: "LIKE" });
+    const likes = await Activity.countDocuments({ type: "LIKE_POST" });
     const comments = await Activity.countDocuments({ type: "COMMENT" });
     const logins = await Activity.countDocuments({ type: "LOGIN" });
 

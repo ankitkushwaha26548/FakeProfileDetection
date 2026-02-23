@@ -1,16 +1,15 @@
 import express from 'express';
-import auth from '../middleware/auth.js';
-import { runDetectionForUser, getMyRisk, getAllRiskyUsers } from '../controllers/detectionContoller';
+import protect from '../middleware/authMiddleware.js';
+import adminMiddleware from '../middleware/adminMiddleware.js';
+import { runDetectionForUser, getMyRisk, getAllRiskyUsers } from '../controllers/detectionContoller.js';
 
 const router = express.Router();
 
-//user 
-router.get("/me", auth, getMyRisk);
+// User: get own risk
+router.get("/me", protect, getMyRisk);
 
-//admin manual scan 
-router.post("/scan/:userId", auth, runDetectionForUser);
-
-//admin dashboard
-router.get("/all", auth, getAllRiskyUsers);
+// Admin: manual scan and all risky users
+router.post("/scan/:userId", protect, adminMiddleware, runDetectionForUser);
+router.get("/all", protect, adminMiddleware, getAllRiskyUsers);
 
 export default router;

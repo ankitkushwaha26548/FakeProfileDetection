@@ -1,140 +1,111 @@
-import React, { useState } from 'react';
-import { 
-  Heart, 
-  MessageCircle, 
-  Send, 
-  Image as ImageIcon,
-  AlertTriangle,
-  User,
-  MoreVertical,
-  Trash2,
-  Flag
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Heart, MessageCircle, Send, Image as ImageIcon, AlertTriangle,
+  MoreVertical, Flag
 } from 'lucide-react';
+import * as postApi from '../api/postApi';
+
+const currentUserId = () => {
+  try {
+    const u = localStorage.getItem('user');
+    return u ? JSON.parse(u).id : null;
+  } catch { return null; }
+};
 
 export default function PostSystem() {
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      author: "Sarah Johnson",
-      authorImage: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=6366f1&color=fff",
-      riskLevel: "GENUINE",
-      content: "Just finished an amazing project on AI security! Really excited about the results. 🚀",
-      timestamp: "2 hours ago",
-      likes: 45,
-      comments: 12,
-      isLiked: false,
-      commentsList: [
-        { id: 1, user: "John Doe", text: "Awesome work!", time: "1h ago" },
-        { id: 2, user: "Mike Wilson", text: "Can't wait to see it!", time: "30m ago" }
-      ]
-    },
-    {
-      id: 2,
-      author: "Bot Suspect",
-      authorImage: "https://ui-avatars.com/api/?name=Bot+User&background=ef4444&color=fff",
-      riskLevel: "SUSPICIOUS",
-      content: "Check out this amazing offer! Click here now!!!",
-      timestamp: "5 minutes ago",
-      likes: 2,
-      comments: 0,
-      isLiked: false,
-      commentsList: []
-    },
-    {
-      id: 3,
-      author: "Alex Chen",
-      authorImage: "https://ui-avatars.com/api/?name=Alex+Chen&background=10b981&color=fff",
-      riskLevel: "GENUINE",
-      content: "Beautiful sunset today 🌅 Nature never disappoints.",
-      timestamp: "1 day ago",
-      likes: 128,
-      comments: 23,
-      isLiked: true,
-      commentsList: []
-    }
-  ]);
-
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
   const [showAlert, setShowAlert] = useState(false);
-  const [postCount, setPostCount] = useState(0);
   const [lastPostTime, setLastPostTime] = useState(null);
   const [showComments, setShowComments] = useState({});
   const [newComment, setNewComment] = useState({});
+  const [posting, setPosting] = useState(false);
+  const myId = currentUserId();
 
-  const handleCreatePost = (e) => {
-    e.preventDefault();
-    
-    if (!newPost.trim()) return;
-
-    // Bot detection - rapid posting
-    const now = Date.now();
-    const timeSinceLastPost = lastPostTime ? (now - lastPostTime) / 1000 : 9999;
-    
-    if (timeSinceLastPost < 30 && postCount > 0) {
-      setShowAlert(true);
-      setTimeout(() => setShowAlert(false), 5000);
+  const loadFeed = async () => {
+    try {
+      setLoading(true);
+      const { data } = await postApi.getFeed();
+      setPosts(
+        (data || []).map((p) => ({
+          id: p._id,
+          _id: p._id,
+          author: p.user?.name || 'Unknown',
+          authorImage: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=6366f1&color=fff`,
+          riskLevel: p.user?.riskLevel || 'GENUINE',
+          content: p.content,
+          timestamp: p.createdAt ? new Date(p.createdAt).toLocaleString() : '',
+          likes: Array.isArray(p.likes) ? p.likes.length : 0,
+          comments: Array.isArray(p.comments) ? p.comments.length : 0,
+          isLiked: Array.isArray(p.likes) && myId && p.likes.some((id) => String(id) === String(myId)),
+          commentsList: (p.comments || []).map((c) => ({
+            id: c._id,
+            user: c.user?.name || 'User',
+            text: c.text,
+            time: c.createdAt ? new Date(c.createdAt).toLocaleString() : '',
+          })),
+        }))
+      );
+    } catch (_) {
+      setPosts([]);
+    } finally {
+      setLoading(false);
     }
-
-    const post = {
-      id: Date.now(),
-      author: "John Doe",
-      authorImage: "https://ui-avatars.com/api/?name=John+Doe&background=6366f1&color=fff",
-      riskLevel: timeSinceLastPost < 30 ? "SUSPICIOUS" : "GENUINE",
-      content: newPost,
-      timestamp: "Just now",
-      likes: 0,
-      comments: 0,
-      isLiked: false,
-      commentsList: []
-    };
-
-    setPosts([post, ...posts]);
-    setNewPost('');
-    setPostCount(postCount + 1);
-    setLastPostTime(now);
   };
 
-  const handleLike = (postId) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { 
-            ...post, 
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            isLiked: !post.isLiked 
-          }
-        : post
-    ));
+  useEffect(() => {
+    loadFeed();
+  }, []);
+
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+    if (!newPost.trim() || posting) return;
+    const now = Date.now();
+    const timeSinceLastPost = lastPostTime ? (now - lastPostTime) / 1000 : 9999;
+    if (timeSinceLastPost < 30) setShowAlert(true);
+    setPosting(true);
+    try {
+      await postApi.createPost({ content: newPost.trim() });
+      setNewPost('');
+      setLastPostTime(now);
+      loadFeed();
+    } catch (_) {}
+    finally {
+      setPosting(false);
+    }
+  };
+
+  const handleLike = async (postId) => {
+    try {
+      await postApi.likePost(postId);
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                likes: p.isLiked ? p.likes - 1 : p.likes + 1,
+                isLiked: !p.isLiked,
+              }
+            : p
+        )
+      );
+    } catch (_) {}
   };
 
   const toggleComments = (postId) => {
-    setShowComments({
-      ...showComments,
-      [postId]: !showComments[postId]
-    });
+    setShowComments((s) => ({ ...s, [postId]: !s[postId] }));
   };
 
-  const handleAddComment = (postId) => {
-    if (!newComment[postId]?.trim()) return;
-
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? {
-            ...post,
-            comments: post.comments + 1,
-            commentsList: [
-              ...post.commentsList,
-              {
-                id: Date.now(),
-                user: "John Doe",
-                text: newComment[postId],
-                time: "Just now"
-              }
-            ]
-          }
-        : post
-    ));
-
-    setNewComment({ ...newComment, [postId]: '' });
+  const handleAddComment = async (postId) => {
+    const text = newComment[postId]?.trim();
+    if (!text) return;
+    try {
+      await postApi.commentPost(postId, { text });
+      setNewComment((c) => ({ ...c, [postId]: '' }));
+      loadFeed();
+    } catch (_) {}
   };
 
   const getRiskBadge = (level) => {
@@ -145,12 +116,13 @@ export default function PostSystem() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
-      {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">Feed</h1>
-          <p className="text-sm text-gray-500">Share what's on your mind</p>
+        <div className="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Create Post</h1>
+            <p className="text-sm text-gray-500">Share what's on your mind</p>
+          </div>
+          <Link to="/user/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
         </div>
       </div>
 
@@ -195,10 +167,11 @@ export default function PostSystem() {
                   
                   <button
                     type="submit"
-                    className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    disabled={posting}
+                    className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
                   >
                     <Send className="w-4 h-4" />
-                    Post
+                    {posting ? 'Posting...' : 'Post'}
                   </button>
                 </div>
               </div>
@@ -206,7 +179,9 @@ export default function PostSystem() {
           </form>
         </div>
 
-        {/* Posts Feed */}
+        {loading && posts.length === 0 ? (
+          <p className="text-gray-500 py-4">Loading posts...</p>
+        ) : null}
         {posts.map((post) => (
           <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-200">
             

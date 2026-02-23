@@ -1,6 +1,6 @@
-import Activity from '../models/Activity'
+import Activity from '../models/Activity.js'
 
-module.exports = async function anomalyDetector(userId) {
+export default async function anomalyDetector(userId) {
   const activities = await Activity.find({ user: userId })
     .sort({ createdAt: -1 })
     .limit(50);
@@ -31,4 +31,4 @@ module.exports = async function anomalyDetector(userId) {
   }
 
   return risk;
-};
+}

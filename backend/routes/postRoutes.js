@@ -1,13 +1,13 @@
 import express from 'express';
-import auth from '../middleware/auth.js';
+import protect from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 import { createPost, likePost, commentOnPost, getFeed } from '../controllers/postController.js';
 
-router.post('/', auth, createPost);
-router.get('/', auth, getFeed);
-router.post('/like/:id', auth, likePost);
-router.post('/comment/:id', auth, commentOnPost);
+router.post('/', protect, createPost);
+router.get('/', protect, getFeed);
+router.post('/:id/like', protect, likePost);
+router.post('/:id/comment', protect, commentOnPost);
 
 export default router;

@@ -1,6 +1,7 @@
 import Post from '../models/Post.js';
+import RiskScore from '../models/RiskScore.js';
 import { logActivity } from '../utils/activityLogger.js';
-import runDetection from '../utils/fakeDetection.js';  
+import runDetection from '../utils/fakeDetection.js';
 
 // Create a new post
 export const createPost = async (req, res) => {
@@ -56,11 +57,22 @@ export const commentOnPost = async (req, res) => {
     }
 };
 
-//Get Feed
+// Get Feed (with risk level per user)
 export const getFeed = async (req, res) => {
     try {
-        const posts = await Post.find().populate('user', 'name').sort({ createdAt: -1 });
-        res.json(posts);
+        const posts = await Post.find()
+            .populate('user', 'name')
+            .populate('comments.user', 'name')
+            .sort({ createdAt: -1 })
+            .lean();
+        const userIds = [...new Set(posts.map((p) => p.user?._id).filter(Boolean))];
+        const risks = await RiskScore.find({ user: { $in: userIds } }).lean();
+        const riskByUser = Object.fromEntries(risks.map((r) => [String(r.user), r.level]));
+        const postsWithRisk = posts.map((p) => ({
+            ...p,
+            user: p.user ? { ...p.user, riskLevel: riskByUser[String(p.user._id)] || 'GENUINE' } : p.user,
+        }));
+        res.json(postsWithRisk);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

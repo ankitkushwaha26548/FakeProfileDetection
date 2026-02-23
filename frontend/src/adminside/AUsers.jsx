@@ -1,23 +1,10 @@
-import React, { useState } from 'react';
-import { 
-  Search,
-  Filter,
-  SortDesc,
-  Eye,
-  Flag,
-  Ban,
-  Download,
-  RefreshCw,
-  ChevronDown,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  User,
-  Mail,
-  Shield,
-  Clock,
-  MoreVertical
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Search, Filter, SortDesc, Eye, Flag, Ban, Download, RefreshCw,
+  ChevronDown, CheckCircle, AlertTriangle, XCircle, User, Mail, Shield, Clock, MoreVertical
 } from 'lucide-react';
+import * as adminApi from '../api/adminApi';
 
 function AdminUser() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,98 +12,44 @@ function AdminUser() {
   const [sortBy, setSortBy] = useState('score');
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample User Data
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "John Doe",
-      email: "john.doe@example.com",
-      riskScore: 15,
-      riskLevel: "GENUINE",
-      lastLogin: "2 hours ago",
-      location: "San Francisco, CA",
-      deviceCount: 2,
-      activityCount: 145
-    },
-    {
-      id: 2,
-      name: "SuspiciousBot123",
-      email: "bot123@spam.com",
-      riskScore: 75,
-      riskLevel: "FAKE",
-      lastLogin: "5 minutes ago",
-      location: "Unknown",
-      deviceCount: 8,
-      activityCount: 523
-    },
-    {
-      id: 3,
-      name: "Sarah Johnson",
-      email: "sarah.j@example.com",
-      riskScore: 8,
-      riskLevel: "GENUINE",
-      lastLogin: "1 day ago",
-      location: "New York, NY",
-      deviceCount: 1,
-      activityCount: 89
-    },
-    {
-      id: 4,
-      name: "SpamUser999",
-      email: "spam999@fake.net",
-      riskScore: 45,
-      riskLevel: "SUSPICIOUS",
-      lastLogin: "10 minutes ago",
-      location: "Multiple",
-      deviceCount: 5,
-      activityCount: 234
-    },
-    {
-      id: 5,
-      name: "Alex Chen",
-      email: "alex.chen@example.com",
-      riskScore: 12,
-      riskLevel: "GENUINE",
-      lastLogin: "3 hours ago",
-      location: "Los Angeles, CA",
-      deviceCount: 3,
-      activityCount: 167
-    },
-    {
-      id: 6,
-      name: "FakeAccount456",
-      email: "fake456@bot.com",
-      riskScore: 88,
-      riskLevel: "FAKE",
-      lastLogin: "1 minute ago",
-      location: "Unknown",
-      deviceCount: 12,
-      activityCount: 891
-    },
-    {
-      id: 7,
-      name: "Mike Wilson",
-      email: "mike.w@example.com",
-      riskScore: 38,
-      riskLevel: "SUSPICIOUS",
-      lastLogin: "6 hours ago",
-      location: "Chicago, IL",
-      deviceCount: 4,
-      activityCount: 198
-    },
-    {
-      id: 8,
-      name: "Emma Davis",
-      email: "emma.davis@example.com",
-      riskScore: 5,
-      riskLevel: "GENUINE",
-      lastLogin: "30 minutes ago",
-      location: "Seattle, WA",
-      deviceCount: 2,
-      activityCount: 234
+  const load = async () => {
+    try {
+      setLoading(true);
+      const { data } = await adminApi.getUsers();
+      setUsers(
+        (data || []).map((r) => ({
+          id: r.user?._id || r._id,
+          _id: r._id,
+          name: r.user?.name || '—',
+          email: r.user?.email || '—',
+          riskScore: r.score ?? 0,
+          riskLevel: r.level || 'GENUINE',
+          lastLogin: r.lastUpdated ? new Date(r.lastUpdated).toLocaleString() : '—',
+          location: '—',
+          deviceCount: 0,
+          activityCount: 0,
+        }))
+      );
+    } catch (_) {
+      setUsers([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleFlag = async (userId) => {
+    try {
+      await adminApi.flagUser(userId);
+      load();
+    } catch (_) {}
+  };
 
   // Filter and Sort Logic
   const filteredUsers = users
@@ -208,10 +141,11 @@ function AdminUser() {
                 <Download className="w-4 h-4" />
                 Export
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-white transition-colors text-sm">
+              <button onClick={load} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg text-white text-sm">
                 <RefreshCw className="w-4 h-4" />
-                Refresh
+                {loading ? 'Loading...' : 'Refresh'}
               </button>
+              <Link to="/" className="text-gray-400 hover:text-white text-sm">Dashboard</Link>
             </div>
           </div>
         </div>
@@ -417,7 +351,7 @@ function AdminUser() {
                           <button className="p-2 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/30 rounded-lg transition-colors" title="View Details">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/30 rounded-lg transition-colors" title="Flag User">
+                          <button onClick={() => handleFlag(user.id)} className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-900/30 rounded-lg transition-colors" title="Flag User">
                             <Flag className="w-4 h-4" />
                           </button>
                           <button className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded-lg transition-colors" title="Ban User">

@@ -1,10 +1,10 @@
-import { rundetection } from "../utils/fakeDetection";
-import RiskScore from "../models/RiskScore";
+import runDetection from '../utils/fakeDetection.js';
+import RiskScore from "../models/RiskScore.js";
 
 //Run detection manually
 export const runDetectionForUser = async (req, res) => {
     try {
-        const result = await rundetection(req.params.userId);
+        const result = await runDetection(req.params.userId);
         res.json ({
             message: "Detection completed",
             result
@@ -18,7 +18,7 @@ export const runDetectionForUser = async (req, res) => {
 export const getMyRisk = async (req, res) => {
     try {
         const risk = await RiskScore.findOne({ user: req.user._id });
-        res.json(risk || {score: 0, level: "GENUIINE" });
+        res.json(risk || { score: 0, level: "GENUINE" });
 } catch (error) {
 res.status(500).json({ error: error.message });
     }

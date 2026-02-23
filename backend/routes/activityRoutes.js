@@ -1,19 +1,16 @@
 import express from "express";
-import auth from "../middleware/auth.js";
-import admin from "../middleware/admin.js";
+import protect from '../middleware/authMiddleware.js';
+import adminMiddleware from "../middleware/adminMiddleware.js";
+import { getActivityStats,getAllActivities,getUserActivities } from "../controllers/activityController.js";
+
+
 const router = express.Router();
 
-const {
-  getAllActivities,
-  getUserActivities,
-  getActivityStats
-} = require("../controllers/activityController");
-
 // User routes
-router.get("/me", auth, getUserActivities);
+router.get("/me", protect, getUserActivities);
 
 // Admin routes
-router.get("/all", auth, admin, getAllActivities);
-router.get("/stats", auth, admin, getActivityStats);
+router.get("/all", protect, adminMiddleware, getAllActivities);
+router.get("/stats", protect, adminMiddleware, getActivityStats);
 
 export default router;

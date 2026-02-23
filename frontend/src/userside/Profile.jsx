@@ -1,52 +1,95 @@
-import React, { useState } from 'react';
-import { 
-  Edit, 
-  Shield, 
-  Activity, 
-  Smartphone, 
-  Clock, 
-  MapPin, 
-  Mail, 
-  Calendar,
-  User,
-  TrendingUp,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  SmartphoneNfc
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Shield, Activity, Smartphone, Clock, MapPin, Mail,
+  User, CheckCircle, AlertTriangle, SmartphoneNfc, TrendingUp
 } from 'lucide-react';
+import * as profileApi from '../api/profileApi';
+import * as detectionApi from '../api/detectionApi';
+import * as activityApi from '../api/activityApi';
 
 export default function ProfileDashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
-  
-  const userData = {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    bio: "Tech enthusiast. Exploring AI, cybersecurity and innovation.",
-    location: "San Francisco, CA",
-    joinDate: "January 2024",
-    profileImage: "https://ui-avatars.com/api/?name=John+Doe&size=200&background=6366f1&color=fff",
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [userData, setUserData] = useState({
+    name: '',
+    email: '',
+    bio: '',
+    location: '',
+    profileImage: '',
+  });
+  const [stats, setStats] = useState({
+    riskLevel: 'GENUINE',
+    riskScore: 0,
+    activityCount: 0,
+  });
+  const [activities, setActivities] = useState([]);
+  const [editForm, setEditForm] = useState({ bio: '', location: '', profileImage: '' });
+  const [saving, setSaving] = useState(false);
 
-  const stats = {
-    riskLevel: "GENUINE",
-    riskScore: 18,
-    accountStatus: "Active",
-    activityCount: 245,
-    deviceCount: 3,
-    trustedDevices: 2,
-    unknownDevices: 1,
-    lastLogin: "2 hours ago",
-    lastDevice: "Chrome on MacOS",
-    lastLocation: "San Francisco, CA",
-  };
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [profileRes, riskRes, activitiesRes] = await Promise.all([
+          profileApi.getProfile(),
+          detectionApi.getMyRisk().catch(() => ({ data: { level: 'GENUINE', score: 0 } })),
+          activityApi.getMyActivities().catch(() => ({ data: [] })),
+        ]);
+        const profile = profileRes.data;
+        const user = profile?.user || {};
+        setUserData({
+          name: user.name || 'User',
+          email: user.email || '',
+          bio: profile?.bio || '',
+          location: profile?.location || '',
+          profileImage: profile?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&size=200&background=6366f1&color=fff`,
+        });
+        setEditForm({
+          bio: profile?.bio || '',
+          location: profile?.location || '',
+          profileImage: profile?.profileImage || '',
+        });
+        setStats({
+          riskLevel: riskRes.data?.level || 'GENUINE',
+          riskScore: riskRes.data?.score ?? 0,
+          activityCount: Array.isArray(activitiesRes.data) ? activitiesRes.data.length : 0,
+        });
+        const list = Array.isArray(activitiesRes.data) ? activitiesRes.data : [];
+        setActivities(list.slice(0, 10).map((a, i) => ({
+          id: a._id || i,
+          action: a.type === 'LOGIN' ? 'Login' : a.type === 'POST' ? 'Created a post' : a.type === 'LIKE_POST' ? 'Liked a post' : a.type,
+          time: a.createdAt ? new Date(a.createdAt).toLocaleString() : '',
+          severity: 'NORMAL',
+          type: a.type,
+        })));
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-  const activities = [
-    { id: 1, action: "Created a post", time: "2h ago", severity: "NORMAL", type: 'POST' },
-    { id: 2, action: "Login from new device", time: "5h ago", severity: "HIGH", type: 'LOGIN' },
-    { id: 3, action: "Liked multiple posts", time: "1d ago", severity: "NORMAL", type: 'LIKE' },
-    { id: 4, action: "Password changed", time: "2d ago", severity: "MEDIUM", type: 'SECURITY' },
-  ];
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      await profileApi.updateProfile(editForm);
+      setUserData((prev) => ({
+        ...prev,
+        bio: editForm.bio,
+        location: editForm.location,
+        profileImage: editForm.profileImage || prev.profileImage,
+      }));
+      setShowEditModal(false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const getRiskColor = (level) => {
     switch(level) {
@@ -63,13 +106,33 @@ export default function ProfileDashboard() {
     return "bg-blue-100 text-blue-600";
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading profile...</p>
+      </div>
+    );
+  }
+  if (error && !userData.name) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">{error}</p>
+          <Link to="/user/feed" className="text-indigo-600">Back to Feed</Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">Profile Security Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-1">AI-powered fake profile risk analysis</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Profile Security Dashboard</h1>
+            <p className="text-sm text-gray-500 mt-1">AI-powered fake profile risk analysis</p>
+          </div>
+          <Link to="/user/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
         </div>
       </div>
 
@@ -189,9 +252,9 @@ export default function ProfileDashboard() {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                <button className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold flex items-center gap-1">
+                <Link to="/user/activity" className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold flex items-center gap-1">
                   View Logs <TrendingUp className="w-4 h-4" />
-                </button>
+                </Link>
               </div>
 
               <div className="space-y-1">
@@ -224,7 +287,6 @@ export default function ProfileDashboard() {
         </div>
       </div>
 
-      {/* Edit Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
@@ -234,21 +296,37 @@ export default function ProfileDashboard() {
             </div>
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Full Name</label>
-                <input defaultValue={userData.name} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-              <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-500 uppercase ml-1">Bio</label>
-                <textarea defaultValue={userData.bio} rows="3" className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none" />
+                <textarea
+                  value={editForm.bio}
+                  onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))}
+                  rows="3"
+                  className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-gray-500 uppercase ml-1">Location</label>
-                <input defaultValue={userData.location} className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <input
+                  value={editForm.location}
+                  onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
+                  className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Profile image URL</label>
+                <input
+                  value={editForm.profileImage}
+                  onChange={(e) => setEditForm((f) => ({ ...f, profileImage: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-8">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 py-3 rounded-xl font-semibold text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
-              <button className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-200">Save Changes</button>
+              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 py-3 rounded-xl font-semibold text-gray-600 hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSaveProfile} disabled={saving} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>

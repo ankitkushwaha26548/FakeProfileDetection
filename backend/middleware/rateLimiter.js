@@ -1,7 +1,8 @@
-const rateLimit = require("express-rate-limit");
+import rateLimit from "express-rate-limit"
+
 
 // General API limiter
-exports.apiLimiter = rateLimit({
+export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // max 100 requests per IP
   message: {
@@ -12,7 +13,7 @@ exports.apiLimiter = rateLimit({
 });
 
 // Auth limiter (login/register protection)
-exports.authLimiter = rateLimit({
+export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10, // only 10 login/register attempts
   message: {
@@ -21,7 +22,7 @@ exports.authLimiter = rateLimit({
 });
 
 // Bot-like behavior limiter
-exports.botLimiter = rateLimit({
+export const botLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 30, // 30 actions per minute
   message: {

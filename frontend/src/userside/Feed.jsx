@@ -1,127 +1,94 @@
-import React, { useState } from 'react';
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  Bookmark,
-  MoreVertical,
-  Shield,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  Send
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Heart, MessageCircle, Share2, Bookmark, MoreVertical,
+  AlertTriangle, CheckCircle, XCircle, Send
 } from 'lucide-react';
+import * as postApi from '../api/postApi';
+
+const currentUserId = () => {
+  try {
+    const u = localStorage.getItem('user');
+    return u ? JSON.parse(u).id : null;
+  } catch { return null; }
+};
 
 export default function FeedSystem() {
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      user: {
-        name: "Sarah Johnson",
-        image: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=10b981&color=fff",
-        riskLevel: "GENUINE"
-      },
-      content: "Just completed my first AI project! The results are amazing. Thanks to everyone who helped me along the way. 🚀✨",
-      timestamp: "2 hours ago",
-      likes: 124,
-      comments: 18,
-      shares: 5,
-      isLiked: false,
-      isBookmarked: false
-    },
-    {
-      id: 2,
-      user: {
-        name: "Mike Thompson",
-        image: "https://ui-avatars.com/api/?name=Mike+Thompson&background=10b981&color=fff",
-        riskLevel: "GENUINE"
-      },
-      content: "Beautiful sunset at the beach today 🌅 Nature never ceases to amaze me!",
-      timestamp: "4 hours ago",
-      likes: 89,
-      comments: 12,
-      shares: 3,
-      isLiked: true,
-      isBookmarked: false
-    },
-    {
-      id: 3,
-      user: {
-        name: "SuspiciousBot123",
-        image: "https://ui-avatars.com/api/?name=SB&background=eab308&color=fff",
-        riskLevel: "SUSPICIOUS"
-      },
-      content: "🔥🔥 AMAZING OFFER!!! Click here for FREE rewards NOW!! Limited time only! Don't miss out!!! 💰💰💰",
-      timestamp: "10 minutes ago",
-      likes: 2,
-      comments: 0,
-      shares: 0,
-      isLiked: false,
-      isBookmarked: false
-    },
-    {
-      id: 4,
-      user: {
-        name: "Alex Chen",
-        image: "https://ui-avatars.com/api/?name=Alex+Chen&background=10b981&color=fff",
-        riskLevel: "GENUINE"
-      },
-      content: "Had an incredible meeting with the team today. Innovation happens when great minds collaborate! 💡",
-      timestamp: "1 day ago",
-      likes: 156,
-      comments: 24,
-      shares: 8,
-      isLiked: false,
-      isBookmarked: true
-    },
-    {
-      id: 5,
-      user: {
-        name: "FakeAccount999",
-        image: "https://ui-avatars.com/api/?name=FA&background=ef4444&color=fff",
-        riskLevel: "FAKE"
-      },
-      content: "WIN BIG MONEY NOW!!! 💵💵💵 GUARANTEED RETURNS!!! CLICK LINK IN BIO!!! ACT FAST!!!",
-      timestamp: "3 minutes ago",
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      isLiked: false,
-      isBookmarked: false
-    },
-    {
-      id: 6,
-      user: {
-        name: "Emma Wilson",
-        image: "https://ui-avatars.com/api/?name=Emma+Wilson&background=10b981&color=fff",
-        riskLevel: "GENUINE"
-      },
-      content: "Learning something new every day keeps the mind sharp. Today's topic: Machine Learning algorithms 📚",
-      timestamp: "2 days ago",
-      likes: 201,
-      comments: 31,
-      shares: 12,
-      isLiked: true,
-      isBookmarked: true
-    },
-    {
-      id: 7,
-      user: {
-        name: "SpamBot2024",
-        image: "https://ui-avatars.com/api/?name=SB&background=eab308&color=fff",
-        riskLevel: "SUSPICIOUS"
-      },
-      content: "Check out this website for instant cash! Everyone is doing it! Join now before it's too late!",
-      timestamp: "1 hour ago",
-      likes: 1,
-      comments: 0,
-      shares: 0,
-      isLiked: false,
-      isBookmarked: false
-    }
-  ]);
-
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showComments, setShowComments] = useState({});
+  const [commentText, setCommentText] = useState({});
+  const myId = currentUserId();
+
+  const loadFeed = async () => {
+    try {
+      setLoading(true);
+      const { data } = await postApi.getFeed();
+      setPosts(
+        (data || []).map((p) => ({
+          id: p._id,
+          _id: p._id,
+          user: {
+            _id: p.user?._id,
+            name: p.user?.name || 'Unknown',
+            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=10b981&color=fff`,
+            riskLevel: p.user?.riskLevel || 'GENUINE',
+          },
+          content: p.content,
+          timestamp: p.createdAt ? new Date(p.createdAt).toLocaleString() : '',
+          likes: Array.isArray(p.likes) ? p.likes.length : 0,
+          comments: Array.isArray(p.comments) ? p.comments.length : 0,
+          shares: 0,
+          isLiked: Array.isArray(p.likes) && myId && p.likes.some((id) => String(id) === String(myId)),
+          isBookmarked: false,
+          commentsList: (p.comments || []).map((c) => ({
+            id: c._id,
+            user: c.user?.name || 'User',
+            text: c.text,
+            time: c.createdAt ? new Date(c.createdAt).toLocaleString() : '',
+          })),
+        }))
+      );
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load feed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFeed();
+  }, []);
+
+  const handleLike = async (postId) => {
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+    try {
+      await postApi.likePost(postId);
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? {
+                ...p,
+                likes: p.isLiked ? p.likes - 1 : p.likes + 1,
+                isLiked: !p.isLiked,
+              }
+            : p
+        )
+      );
+    } catch (_) {}
+  };
+
+  const handleAddComment = async (postId) => {
+    const text = commentText[postId]?.trim();
+    if (!text) return;
+    try {
+      await postApi.commentPost(postId, { text });
+      setCommentText((c) => ({ ...c, [postId]: '' }));
+      loadFeed();
+    } catch (_) {}
+  };
 
   const getRiskBadgeColor = (level) => {
     switch(level) {
@@ -162,43 +129,34 @@ export default function FeedSystem() {
     }
   };
 
-  const handleLike = (postId) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { 
-            ...post, 
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
-            isLiked: !post.isLiked 
-          }
-        : post
-    ));
-  };
-
-  const handleBookmark = (postId) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { ...post, isBookmarked: !post.isBookmarked }
-        : post
-    ));
-  };
-
   const toggleComments = (postId) => {
-    setShowComments({
-      ...showComments,
-      [postId]: !showComments[postId]
-    });
+    setShowComments((s) => ({ ...s, [postId]: !s[postId] }));
   };
+
+  if (loading && posts.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <p className="text-gray-500">Loading feed...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      
-      {/* Header */}
       <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">Social Feed</h1>
-          <p className="text-sm text-gray-500">AI-powered security monitoring</p>
+        <div className="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Social Feed</h1>
+            <p className="text-sm text-gray-500">AI-powered security monitoring</p>
+          </div>
+          <div className="flex gap-2">
+            <Link to="/user/post" className="text-indigo-600 hover:underline">Create Post</Link>
+            <Link to="/user/profile" className="text-indigo-600 hover:underline">Profile</Link>
+            <Link to="/user/activity" className="text-indigo-600 hover:underline">Activity</Link>
+          </div>
         </div>
       </div>
+      {error && <div className="max-w-2xl mx-auto px-4 py-2 text-red-600">{error}</div>}
 
       {/* Feed Container */}
       <div className="max-w-2xl mx-auto px-4 py-6">
@@ -305,7 +263,6 @@ export default function FeedSystem() {
               {/* Action Buttons */}
               <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-2">
                 
-                {/* Like Button */}
                 <button
                   onClick={() => handleLike(post.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all flex-1 justify-center ${
@@ -335,36 +292,34 @@ export default function FeedSystem() {
                   <span className="font-medium text-sm">Share</span>
                 </button>
 
-                {/* Bookmark Button */}
-                <button
-                  onClick={() => handleBookmark(post.id)}
-                  className={`p-2 rounded-lg transition-all ${
-                    post.isBookmarked 
-                      ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' 
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Bookmark 
-                    className={`w-5 h-5 ${post.isBookmarked ? 'fill-indigo-600' : ''}`} 
-                  />
-                </button>
+                <span className="p-2 text-gray-400 cursor-default">
+                  <Bookmark className="w-5 h-5" />
+                </span>
               </div>
 
-              {/* Comments Section */}
               {showComments[post.id] && (
                 <div className="px-6 pb-6 border-t border-gray-100">
+                  {post.commentsList?.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {post.commentsList.map((c) => (
+                        <div key={c.id} className="flex gap-2 text-sm">
+                          <span className="font-semibold text-gray-700">{c.user}:</span>
+                          <span className="text-gray-800">{c.text}</span>
+                          <span className="text-gray-400 text-xs">{c.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-4 flex gap-2">
-                    <img 
-                      src="https://ui-avatars.com/api/?name=You&background=6366f1&color=fff" 
-                      alt="You" 
-                      className="w-8 h-8 rounded-full"
-                    />
                     <input
                       type="text"
+                      value={commentText[post.id] || ''}
+                      onChange={(e) => setCommentText((c) => ({ ...c, [post.id]: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
                       placeholder="Write a comment..."
                       className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
-                    <button className="text-indigo-600 hover:text-indigo-700 p-2">
+                    <button onClick={() => handleAddComment(post.id)} className="text-indigo-600 hover:text-indigo-700 p-2">
                       <Send className="w-5 h-5" />
                     </button>
                   </div>
@@ -375,10 +330,9 @@ export default function FeedSystem() {
           ))}
         </div>
 
-        {/* Load More */}
         <div className="mt-8 text-center">
-          <button className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium">
-            Load More Posts
+          <button onClick={loadFeed} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
+            Refresh Feed
           </button>
         </div>
 

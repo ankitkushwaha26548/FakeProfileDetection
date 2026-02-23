@@ -1,142 +1,49 @@
-import React, { useState } from 'react';
-import { Search,AlertTriangle,Shield,Ban,Eye,Trash2,Download,RefreshCw,
-    XCircle,Zap,Activity,MapPin,Wifi,Clock,TrendingUp,Filter,ChevronDown,UserX
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, AlertTriangle, Shield, Ban, Eye, Trash2, Download, RefreshCw,
+  XCircle, Zap, Activity, MapPin, Wifi, Clock, TrendingUp, Filter, ChevronDown, UserX
 } from 'lucide-react';
+import * as adminApi from '../api/adminApi';
 
 function FakeAccount() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('score-desc');
   const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [fakeAccounts, setFakeAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fake Accounts Data
-  const [fakeAccounts, setFakeAccounts] = useState([
-    {
-      id: 1,
-      username: "SuspiciousBot123",
-      email: "bot123@spam.com",
-      riskScore: 95,
-      autoFlagged: true,
-      createdAt: "2 hours ago",
-      lastActive: "5 minutes ago",
-      rapidActivity: true,
-      activityCount: 523,
-      activityRate: "87 actions/hour",
-      ipMismatch: 8,
-      deviceCount: 12,
-      locations: ["Unknown", "VPN Proxy", "Multiple"],
-      flagReasons: [
-        "Bot-like behavior detected",
-        "Rapid posting (50+ posts in 10 min)",
-        "IP address changes frequently",
-        "Incomplete profile (0% complete)"
-      ]
-    },
-    {
-      id: 2,
-      username: "FakeAccount999",
-      email: "fake999@bot.net",
-      riskScore: 88,
-      autoFlagged: true,
-      createdAt: "1 day ago",
-      lastActive: "2 minutes ago",
-      rapidActivity: true,
-      activityCount: 891,
-      activityRate: "120 actions/hour",
-      ipMismatch: 15,
-      deviceCount: 20,
-      locations: ["Unknown", "Tor Network", "VPN"],
-      flagReasons: [
-        "Account created and immediately active",
-        "Suspicious email domain",
-        "Multiple IP addresses detected",
-        "Bot pattern matching 98%"
-      ]
-    },
-    {
-      id: 3,
-      username: "SpamMaster2024",
-      email: "spam2024@fake.com",
-      riskScore: 92,
-      autoFlagged: true,
-      createdAt: "3 hours ago",
-      lastActive: "1 minute ago",
-      rapidActivity: true,
-      activityCount: 678,
-      activityRate: "95 actions/hour",
-      ipMismatch: 12,
-      deviceCount: 18,
-      locations: ["Multiple Countries", "Proxy Server"],
-      flagReasons: [
-        "Spam keywords detected in posts",
-        "Rapid friend requests (100+ in 5 min)",
-        "Device fingerprint mismatch",
-        "Similar to known bot patterns"
-      ]
-    },
-    {
-      id: 4,
-      username: "BotNet456",
-      email: "botnet456@evil.org",
-      riskScore: 97,
-      autoFlagged: true,
-      createdAt: "30 minutes ago",
-      lastActive: "Active now",
-      rapidActivity: true,
-      activityCount: 1234,
-      activityRate: "150 actions/hour",
-      ipMismatch: 25,
-      deviceCount: 30,
-      locations: ["Rotating IPs", "Bot Network"],
-      flagReasons: [
-        "CRITICAL: Part of known botnet",
-        "Automated behavior confirmed",
-        "Mass following/unfollowing",
-        "Cookie manipulation detected"
-      ]
-    },
-    {
-      id: 5,
-      username: "CryptoScam77",
-      email: "scam77@phish.io",
-      riskScore: 85,
-      autoFlagged: true,
-      createdAt: "5 hours ago",
-      lastActive: "10 minutes ago",
-      rapidActivity: false,
-      activityCount: 234,
-      activityRate: "45 actions/hour",
-      ipMismatch: 6,
-      deviceCount: 8,
-      locations: ["Nigeria", "India", "Russia"],
-      flagReasons: [
-        "Phishing links in bio",
-        "Crypto scam keywords",
-        "Mass DM campaign",
-        "Fake verification badge attempt"
-      ]
-    },
-    {
-      id: 6,
-      username: "AutoPoster321",
-      email: "auto321@spam.net",
-      riskScore: 79,
-      autoFlagged: true,
-      createdAt: "1 day ago",
-      lastActive: "3 minutes ago",
-      rapidActivity: true,
-      activityCount: 456,
-      activityRate: "78 actions/hour",
-      ipMismatch: 10,
-      deviceCount: 14,
-      locations: ["Cloud Server", "AWS", "VPN"],
-      flagReasons: [
-        "Identical posts repeated",
-        "Posting at exact intervals",
-        "No human interaction patterns",
-        "API abuse detected"
-      ]
+  const load = async () => {
+    try {
+      setLoading(true);
+      const { data } = await adminApi.getFakeUsers();
+      setFakeAccounts(
+        (data || []).map((r, i) => ({
+          id: r.user?._id || r._id || i,
+          username: r.user?.name || '—',
+          email: r.user?.email || '—',
+          riskScore: r.score ?? 0,
+          autoFlagged: true,
+          createdAt: r.lastUpdated ? new Date(r.lastUpdated).toLocaleString() : '—',
+          lastActive: r.lastUpdated ? new Date(r.lastUpdated).toLocaleString() : '—',
+          rapidActivity: false,
+          activityCount: 0,
+          activityRate: '—',
+          ipMismatch: 0,
+          deviceCount: 0,
+          locations: [],
+          flagReasons: Array.isArray(r.reasons) ? r.reasons : (r.reasons ? [r.reasons] : ['Flagged']),
+        }))
+      );
+    } catch (_) {
+      setFakeAccounts([]);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
 
   // Filter and Sort
   const filteredAccounts = fakeAccounts
@@ -190,13 +97,14 @@ function FakeAccount() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 bg-red-600/20 border border-red-500/30 rounded-lg text-red-400 hover:bg-red-600/30 transition-colors text-sm">
-                <Download className="w-4 h-4" />
-                Export Report
+              <button onClick={load} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg text-white text-sm">
+                <RefreshCw className="w-4 h-4" />
+                {loading ? 'Loading...' : 'Refresh'}
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white transition-colors text-sm">
-                <Ban className="w-4 h-4" />
-                Ban Selected ({selectedAccounts.length})
+              <Link to="/" className="text-red-300 hover:text-white text-sm">Dashboard</Link>
+              <button className="flex items-center gap-2 px-4 py-2 bg-red-600/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                <Download className="w-4 h-4" />
+                Export
               </button>
             </div>
           </div>
@@ -204,7 +112,6 @@ function FakeAccount() {
       </div>
 
       <div className="p-6 space-y-6">
-        
         {/* Alert Banner */}
         <div className="bg-red-900/20 border-2 border-red-500/40 rounded-2xl p-6">
           <div className="flex items-start gap-4">

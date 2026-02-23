@@ -3,13 +3,14 @@ import Activity from '../models/Activity.js';
 import RiskScore from '../models/RiskScore.js';
 import LoginLog from '../models/LoginLog.js';
 
-export const runDetection = async (userId) => {
+
+const runDetection = async (userId) => {
     let score = 0;
     let reasons = [];
 
     //profile completeness
     const profile = await Profile.findOne({ user: userId });
-if (!profile || profile.completeness < 40) {
+if (!profile || (profile.profileCompleteness || 0) < 40) {
         score += 20;
         reasons.push("Low profile completeness");
     }
@@ -23,8 +24,8 @@ if (activities < 3) {
 
 //Login Frequency
 const logins = await Activity.find({ user: userId, type: 'LOGIN' })
-.sort({ timestamp: -1 })
-.limit(10);
+    .sort({ createdAt: -1 })
+    .limit(10);
 
 if (logins.length > 5) {
     const timeDiff = new Date(logins[0].createdAt) - new Date(logins[4].createdAt);
@@ -70,3 +71,6 @@ await risk.save();
 return risk;
 
 };
+
+
+export default runDetection

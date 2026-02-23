@@ -1,4 +1,4 @@
-module.exports = function riskCalculator({ activityScore, ipRisk, behaviorRisk, deviceRisk }) {
+export default function riskCalculator({ activityScore, ipRisk, behaviorRisk, deviceRisk }) {
   let score = 0;
   let reasons = [];
 
@@ -38,9 +38,5 @@ module.exports = function riskCalculator({ activityScore, ipRisk, behaviorRisk, 
   if (score >= 70) level = "FAKE";
   else if (score >= 40) level = "SUSPICIOUS";
 
-  return {
-    score,
-    level,
-    reasons
-  };
-};
+  return {score,level,reasons};
+}

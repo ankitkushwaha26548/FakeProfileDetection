@@ -1,10 +1,12 @@
 import express from 'express';
-import auth from '../middleware/auth.js';
-import { getMyProfile, createOrUpdateProfile } from '../controllers/profileController';
+import protect from '../middleware/authMiddleware.js';
+import { getMyProfile, createOrUpdateProfile } from '../controllers/profileController.js';
 
 const router = express.Router();
 
-router.post('/', auth, createOrUpdateProfile);
-router.get('/me', auth, getMyProfile);
+router.post('/', protect, createOrUpdateProfile);
+router.put('/update', protect, createOrUpdateProfile);
+router.post('/upload', protect, createOrUpdateProfile);
+router.get('/me', protect, getMyProfile);
 
 export default router;

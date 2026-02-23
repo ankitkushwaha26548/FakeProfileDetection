@@ -1,4 +1,4 @@
-import Activity from "../models/Activity";
+import Activity from "../models/Activity.js";
 
 // Log user activity
 export const logActivity = async (userId, type, targetId=null, metadata = {}) => {

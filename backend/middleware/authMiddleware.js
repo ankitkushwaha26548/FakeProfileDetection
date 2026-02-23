@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 // Middleware to protect routes
-export const protect = async (req, res, next) => {
+const protect = async (req, res, next) => {
     try {
         const token = req.header('Authorization')?.replace('Bearer ', '');
 
@@ -21,3 +21,5 @@ export const protect = async (req, res, next) => {
         res.status(401).json({ message: 'Token is not valid' });
      }  
     };
+
+    export default protect
