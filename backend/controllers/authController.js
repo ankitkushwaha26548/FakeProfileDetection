@@ -24,7 +24,8 @@ export const registerUser = async (req, res) => {
     user = await User.create({
         name,
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        role: email.endsWith('@admin.com') ? 'admin' : 'user'
     });
 
     //token

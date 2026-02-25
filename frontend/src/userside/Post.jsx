@@ -122,7 +122,7 @@ export default function PostSystem() {
             <h1 className="text-2xl font-bold">Create Post</h1>
             <p className="text-sm text-gray-500">Share what's on your mind</p>
           </div>
-          <Link to="/user/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
+          <Link to="/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
         </div>
       </div>
 

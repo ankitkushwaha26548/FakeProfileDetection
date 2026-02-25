@@ -1,15 +1,18 @@
 import express from "express";
-import protect from "../middleware/authMiddleware.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 import adminMiddleware from "../middleware/adminMiddleware.js";
 import { getDashboardStats, getUsersWithRisk, getFakeUsers, getSuspiciousUsers, getLoginLogs, flagUser } from "../controllers/adminController.js";
 
 const router = express.Router();
 
-router.get("/stats", protect, adminMiddleware, getDashboardStats);
-router.get("/users", protect, adminMiddleware, getUsersWithRisk);
-router.get("/fake", protect, adminMiddleware, getFakeUsers);
-router.get("/suspicious", protect, adminMiddleware, getSuspiciousUsers);
-router.get("/logs", protect, adminMiddleware, getLoginLogs);
-router.post("/flag/:userId", protect, adminMiddleware, flagUser);
+// Role-based access control: only admins can access these routes
+router.use(protect);
+router.use(authorize('admin'));
+router.get("/stats", getDashboardStats);
+router.get("/users", getUsersWithRisk);
+router.get("/fake", getFakeUsers);
+router.get("/suspicious", getSuspiciousUsers);
+router.get("/logs", getLoginLogs);
+router.post("/flag/:userId", flagUser);
 
 export default router;

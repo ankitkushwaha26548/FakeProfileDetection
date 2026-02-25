@@ -24,7 +24,7 @@ res.status(500).json({ error: error.message });
     }
 };
 
-//Admin: get all risky users
+//Admin.. get all risky users
 export const getAllRiskyUsers = async (req, res) => {
     try{
         const risks = await RiskScore.find().populate("user", "name email");

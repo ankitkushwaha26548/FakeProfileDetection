@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import Dashboard from "./adminside/Dashboard";
@@ -20,20 +20,80 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/*Admin Routes*/}
-        <Route path="/" element={<AdminProtectedRoute><Dashboard /></AdminProtectedRoute>} />
-        <Route path="/admin/alogin" element={<AdminLogin />} />
-        <Route path="/admin/users" element={<AdminProtectedRoute><AdminUser /></AdminProtectedRoute>} />
-        <Route path="/admin/fake" element={<AdminProtectedRoute><FakeAccount /></AdminProtectedRoute>} />
-        <Route path="/admin/reports" element={<AdminProtectedRoute><Reports /></AdminProtectedRoute>} />
+        {/* Admin Routes */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminProtectedRoute>
+              <Dashboard />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminProtectedRoute>
+              <AdminUser />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/fake"
+          element={
+            <AdminProtectedRoute>
+              <FakeAccount />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <AdminProtectedRoute>
+              <Reports />
+            </AdminProtectedRoute>
+          }
+        />
 
-        {/*User Routes*/}
-        <Route path="/user/login" element={<Login />} />
-        <Route path="/user/register" element={<RegisterPage />} />
-        <Route path="/user/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-        <Route path="/user/feed" element={<ProtectedRoute><FeedSystem /></ProtectedRoute>} />
-        <Route path="/user/post" element={<ProtectedRoute><PostSystem /></ProtectedRoute>} />
-        <Route path="/user/activity" element={<ProtectedRoute><ActivityPage /></ProtectedRoute>} />
+        {/* Auth Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* User Routes */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/feed"
+          element={
+            <ProtectedRoute>
+              <FeedSystem />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/post"
+          element={
+            <ProtectedRoute>
+              <PostSystem />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/activity"
+          element={
+            <ProtectedRoute>
+              <ActivityPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

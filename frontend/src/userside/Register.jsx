@@ -40,7 +40,7 @@ export default function RegisterPage() {
       });
       localStorage.setItem('token', data.token);
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/user/feed', { replace: true });
+      navigate('/feed', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -174,7 +174,7 @@ export default function RegisterPage() {
         </button>
 
         <p className="text-gray-500 text-sm mt-3 mb-11">
-          Already have an account? <Link className="text-indigo-500 font-medium" to="/user/login">Login</Link>
+          Already have an account? <Link className="text-indigo-500 font-medium" to="/login">Login</Link>
         </p>
       </form>
 

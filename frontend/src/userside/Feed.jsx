@@ -150,9 +150,9 @@ export default function FeedSystem() {
             <p className="text-sm text-gray-500">AI-powered security monitoring</p>
           </div>
           <div className="flex gap-2">
-            <Link to="/user/post" className="text-indigo-600 hover:underline">Create Post</Link>
-            <Link to="/user/profile" className="text-indigo-600 hover:underline">Profile</Link>
-            <Link to="/user/activity" className="text-indigo-600 hover:underline">Activity</Link>
+            <Link to="/post" className="text-indigo-600 hover:underline">Create Post</Link>
+            <Link to="/profile" className="text-indigo-600 hover:underline">Profile</Link>
+            <Link to="/activity" className="text-indigo-600 hover:underline">Activity</Link>
           </div>
         </div>
       </div>

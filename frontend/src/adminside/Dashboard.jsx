@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Users, UserX, AlertTriangle, UserCheck, Shield, Activity,
   TrendingUp, TrendingDown, Eye, Clock, MapPin, Terminal,
@@ -10,6 +10,7 @@ import * as detectionApi from '../api/detectionApi';
 import * as activityApi from '../api/activityApi';
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState('24h');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -149,7 +150,17 @@ function Dashboard() {
               <RefreshCw className="w-4 h-4" />
               {loading ? 'Loading...' : 'Refresh'}
             </button>
-            <a href="/admin/alogin" className="text-gray-400 hover:text-white text-sm">Logout</a>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                navigate('/login', { replace: true });
+              }}
+              className="text-gray-400 hover:text-white text-sm"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>

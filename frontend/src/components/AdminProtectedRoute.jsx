@@ -20,7 +20,7 @@ const AdminProtectedRoute = ({ children }) => {
   }, [token]);
 
   if (!token || status === "forbidden") {
-    return <Navigate to="/admin/alogin" replace />;
+    return <Navigate to="/login" replace />;
   }
   if (status === "loading") {
     return (

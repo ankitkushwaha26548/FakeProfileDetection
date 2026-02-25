@@ -36,7 +36,7 @@ function Activity() {
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">My Activity</h1>
-          <Link to="/user/feed" className="text-blue-600 hover:underline">Back to Feed</Link>
+          <Link to="/feed" className="text-blue-600 hover:underline">Back to Feed</Link>
         </div>
         {risk && (
           <div className={`mb-4 p-3 rounded-lg ${risk.level === "FAKE" ? "bg-red-100" : risk.level === "SUSPICIOUS" ? "bg-yellow-100" : "bg-green-100"}`}>

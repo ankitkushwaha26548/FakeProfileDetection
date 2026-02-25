@@ -118,7 +118,7 @@ export default function ProfileDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-2">{error}</p>
-          <Link to="/user/feed" className="text-indigo-600">Back to Feed</Link>
+          <Link to="/feed" className="text-indigo-600">Back to Feed</Link>
         </div>
       </div>
     );
@@ -132,7 +132,7 @@ export default function ProfileDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">Profile Security Dashboard</h1>
             <p className="text-sm text-gray-500 mt-1">AI-powered fake profile risk analysis</p>
           </div>
-          <Link to="/user/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
+          <Link to="/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
         </div>
       </div>
 
@@ -252,7 +252,7 @@ export default function ProfileDashboard() {
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                <Link to="/user/activity" className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold flex items-center gap-1">
+                <Link to="/activity" className="text-indigo-600 hover:text-indigo-700 text-sm font-semibold flex items-center gap-1">
                   View Logs <TrendingUp className="w-4 h-4" />
                 </Link>
               </div>

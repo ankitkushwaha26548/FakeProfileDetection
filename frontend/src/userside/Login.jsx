@@ -29,7 +29,11 @@ export default function LoginPage() {
       const { data } = await authApi.loginUser(formData);
       localStorage.setItem('token', data.token);
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/user/feed', { replace: true });
+      if (data.user?.role === 'admin') {
+        navigate('/admin/dashboard', { replace: true });
+      } else {
+        navigate('/feed', { replace: true });
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -103,7 +107,7 @@ export default function LoginPage() {
         {/* Sign Up Link */}
         <p className="text-gray-500 text-sm mt-3 mb-11">
           Don't have an account?{' '}
-          <Link className="text-indigo-500 hover:text-purple-600 font-medium" to="/user/register">Sign up</Link>
+          <Link className="text-indigo-500 hover:text-purple-600 font-medium" to="/register">Sign up</Link>
         </p>
       </form>
 
