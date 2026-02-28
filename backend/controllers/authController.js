@@ -28,6 +28,24 @@ export const registerUser = async (req, res) => {
         role: email.endsWith('@admin.com') ? 'admin' : 'user'
     });
 
+    try {
+        await LoginLog.create({
+            user: user._id,
+            ip: req.ip || '127.0.0.1',
+            userAgent: req.headers["user-agent"] || 'unknown',
+            device: req.headers["user-agent"] || 'unknown',
+            location: "Unknown"
+        });
+        await runDetection(user._id);
+        await logActivity(user._id, "REGISTER", null, {
+            ip: req.ip,
+            userAgent: req.headers['user-agent']
+        });
+    } catch (err) {
+        console.error("Post-registration tasks failed:", err.message);
+        // We don't want to fail registration if these secondary tasks fail
+    }
+
     //token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 

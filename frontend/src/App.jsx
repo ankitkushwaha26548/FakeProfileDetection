@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import Dashboard from "./adminside/Dashboard";
-import AdminLogin from "./adminside/ALogin";
 import AdminUser from "./adminside/AUsers";
 import FakeAccount from "./adminside/Fake";
 import Reports from "./adminside/Reports";
