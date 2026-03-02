@@ -27,6 +27,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await authApi.loginUser(formData);
+      if (!data?.token) {
+        setError('Invalid response from server');
+        return;
+      }
       localStorage.setItem('token', data.token);
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
       if (data.user?.role === 'admin') {
@@ -35,7 +39,8 @@ export default function LoginPage() {
         navigate('/feed', { replace: true });
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      const msg = err.response?.data?.message || err.message || 'Login failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }

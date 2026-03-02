@@ -38,11 +38,16 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
       });
+      if (!data?.token) {
+        setError('Invalid response from server');
+        return;
+      }
       localStorage.setItem('token', data.token);
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/feed', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      const msg = err.response?.data?.message || err.message || 'Registration failed';
+      setError(msg);
     } finally {
       setLoading(false);
     }

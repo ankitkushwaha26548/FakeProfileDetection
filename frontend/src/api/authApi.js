@@ -8,3 +8,4 @@ export const loginUser = (data) =>
 
 export const getCurrentUser = () =>
   API.get("/auth/me");
+ 
