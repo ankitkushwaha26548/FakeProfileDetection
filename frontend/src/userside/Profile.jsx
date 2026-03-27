@@ -7,6 +7,7 @@ import {
 import * as profileApi from '../api/profileApi';
 import * as detectionApi from '../api/detectionApi';
 import * as activityApi from '../api/activityApi';
+import * as loginLogsApi from '../api/loginLogsApi';
 
 export default function ProfileDashboard() {
   const [showEditModal, setShowEditModal] = useState(false);
@@ -32,10 +33,11 @@ export default function ProfileDashboard() {
     const load = async () => {
       try {
         setLoading(true);
-        const [profileRes, riskRes, activitiesRes] = await Promise.all([
+        const [profileRes, riskRes, activitiesRes, loginLogsRes] = await Promise.all([
           profileApi.getProfile(),
           detectionApi.getMyRisk().catch(() => ({ data: { level: 'GENUINE', score: 0 } })),
           activityApi.getMyActivities().catch(() => ({ data: [] })),
+          loginLogsApi.getMyLoginLogs().catch(() => ({ data: [] })),
         ]);
         const profile = profileRes.data;
         const user = profile?.user || {};
@@ -51,11 +53,25 @@ export default function ProfileDashboard() {
           location: profile?.location || '',
           profileImage: profile?.profileImage || '',
         });
+
+        // 🔥 Calculate login stats
+        const loginLogs = Array.isArray(loginLogsRes.data) ? loginLogsRes.data : [];
+        const uniqueDevices = new Set(loginLogs.map(l => l.device || l.userAgent || 'Unknown'));
+        const uniqueIPs = new Set(loginLogs.map(l => l.ip || l.ipAddress || 'Unknown'));
+        const lastLogin = loginLogs.length > 0 && loginLogs[0].createdAt
+          ? new Date(loginLogs[0].createdAt).toLocaleString()
+          : 'N/A';
+
         setStats({
           riskLevel: riskRes.data?.level || 'GENUINE',
           riskScore: riskRes.data?.score ?? 0,
           activityCount: Array.isArray(activitiesRes.data) ? activitiesRes.data.length : 0,
+          deviceCount: uniqueDevices.size,
+          trustedDevices: 1, // First device is typically trusted
+          unknownDevices: Math.max(0, uniqueDevices.size - 1),
+          lastLogin: lastLogin,
         });
+        
         const list = Array.isArray(activitiesRes.data) ? activitiesRes.data : [];
         setActivities(list.slice(0, 10).map((a, i) => ({
           id: a._id || i,
@@ -118,7 +134,7 @@ export default function ProfileDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-2">{error}</p>
-          <Link to="/feed" className="text-indigo-600">Back to Feed</Link>
+          <Link to="/socialfeed" className="text-indigo-600">Back to Feed</Link>
         </div>
       </div>
     );
@@ -132,7 +148,7 @@ export default function ProfileDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">Profile Security Dashboard</h1>
             <p className="text-sm text-gray-500 mt-1">AI-powered fake profile risk analysis</p>
           </div>
-          <Link to="/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
+          <Link to="/socialfeed" className="text-indigo-600 hover:underline">Back to Feed</Link>
         </div>
       </div>
 

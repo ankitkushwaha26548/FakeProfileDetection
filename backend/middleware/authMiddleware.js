@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
+const JWT_SECRET = process.env.JWT_SECRET || 'FPDFPDFPDFPD';
 
 // Middleware to protect routes
 export const protect = async (req, res, next) => {

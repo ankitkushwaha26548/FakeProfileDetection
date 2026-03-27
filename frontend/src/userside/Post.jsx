@@ -5,6 +5,7 @@ import {
   MoreVertical, Flag
 } from 'lucide-react';
 import * as postApi from '../api/postApi';
+import * as detectionApi from '../api/detectionApi';
 
 const currentUserId = () => {
   try {
@@ -18,6 +19,7 @@ export default function PostSystem() {
   const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
   const [showAlert, setShowAlert] = useState(false);
+  const [alertDetail, setAlertDetail] = useState(null);
   const [lastPostTime, setLastPostTime] = useState(null);
   const [showComments, setShowComments] = useState({});
   const [newComment, setNewComment] = useState({});
@@ -70,6 +72,18 @@ export default function PostSystem() {
       await postApi.createPost({ content: newPost.trim() });
       setNewPost('');
       setLastPostTime(now);
+      
+      // 🔥 Check detected risk level after posting
+      try {
+        const riskRes = await detectionApi.getMyRisk();
+        if (riskRes.data?.level && riskRes.data.level !== 'GENUINE') {
+          setAlertDetail(riskRes.data);
+          setShowAlert(true);
+        }
+      } catch (err) {
+        console.log('Could not fetch risk level:', err.message);
+      }
+      
       loadFeed();
     } catch (_) {}
     finally {
@@ -122,7 +136,7 @@ export default function PostSystem() {
             <h1 className="text-2xl font-bold">Create Post</h1>
             <p className="text-sm text-gray-500">Share what's on your mind</p>
           </div>
-          <Link to="/feed" className="text-indigo-600 hover:underline">Back to Feed</Link>
+          <Link to="/socialfeed" className="text-indigo-600 hover:underline">Back to Feed</Link>
         </div>
       </div>
 
@@ -130,11 +144,35 @@ export default function PostSystem() {
 
         {/* Bot Detection Alert */}
         {showAlert && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 animate-pulse">
-            <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+          <div className={`border rounded-xl p-4 flex items-start gap-3 animate-pulse ${
+            alertDetail && alertDetail.level !== 'GENUINE'
+              ? 'bg-red-50 border-red-200'
+              : 'bg-yellow-50 border-yellow-200'
+          }`}>
+            <AlertTriangle className={`w-5 h-5 mt-0.5 ${
+              alertDetail && alertDetail.level !== 'GENUINE'
+                ? 'text-red-600'
+                : 'text-yellow-600'
+            }`} />
             <div>
-              <p className="font-semibold text-red-900">⚠ Unusual activity detected</p>
-              <p className="text-sm text-red-700">Rapid posting detected. Please slow down to avoid being flagged.</p>
+              <p className={`font-semibold ${
+                alertDetail && alertDetail.level !== 'GENUINE'
+                  ? 'text-red-900'
+                  : 'text-yellow-900'
+              }`}>
+                {alertDetail && alertDetail.level !== 'GENUINE' 
+                  ? '🚨 Detection Alert' 
+                  : '⚠ Unusual activity detected'}
+              </p>
+              <p className={`text-sm ${
+                alertDetail && alertDetail.level !== 'GENUINE'
+                  ? 'text-red-700'
+                  : 'text-yellow-700'
+              }`}>
+                {alertDetail && alertDetail.level !== 'GENUINE'
+                  ? `Risk Level: ${alertDetail.level} (Score: ${alertDetail.score || 0}). ${alertDetail.reasons?.join(', ') || 'Review your account activity.'}`
+                  : 'Rapid posting detected. Please slow down to avoid being flagged.'}
+              </p>
             </div>
           </div>
         )}

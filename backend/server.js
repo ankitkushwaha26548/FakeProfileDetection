@@ -15,7 +15,12 @@ connectDB();
 
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5000', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 
@@ -31,8 +36,8 @@ import adminRoutes from "./routes/adminRoutes.js";
 // Global limiter
 app.use(apiLimiter);
 
-// Auth limiter
-app.use("/api/auth", authLimiter, authRoutes);
+// Auth limiter removed - allowing unlimited login attempts
+app.use("/api/auth", authRoutes);
 
 // Routes
 app.use("/api/profile", profileRoutes);

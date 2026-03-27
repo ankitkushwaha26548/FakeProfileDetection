@@ -36,11 +36,11 @@ export default function LoginPage() {
       if (data.user?.role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else {
-        navigate('/feed', { replace: true });
+        navigate('/socialfeed', { replace: true });
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Login failed';
-      setError(msg);
+      setError(msg); 
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,7 @@ const activitySchema = new mongoose.Schema({
 
     type: {
         type: String,
-        enum: ['LOGIN', 'POST', 'LIKE_POST', 'COMMENT', 'FOLLOW'],
+        enum: ['POST', 'LIKE_POST', 'COMMENT'],
         required: true
     },
 

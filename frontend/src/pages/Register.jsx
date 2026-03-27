@@ -44,7 +44,7 @@ export default function RegisterPage() {
       }
       localStorage.setItem('token', data.token);
       if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/feed', { replace: true });
+      navigate('/socialfeed', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Registration failed';
       setError(msg);

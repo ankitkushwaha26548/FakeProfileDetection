@@ -1,5 +1,23 @@
 import Activity from "../models/Activity.js";
 
+// Create activity log
+export const createActivity = async (req, res) => {
+  try {
+    const { type, targetId, metadata } = req.body;
+
+    const activity = await Activity.create({
+      user: req.user._id,
+      type,
+      targetId,
+      metadata,
+    });
+
+    res.status(201).json(activity);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Get all activities (admin)
 export const getAllActivities = async (req, res) => {
   try {

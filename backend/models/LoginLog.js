@@ -20,15 +20,6 @@ const loginLogSchema = new mongoose.Schema({
     type: String
   },
 
-  location: {
-    type: String
-  },
-
-  isSuspicious: {
-    type: Boolean,
-    default: false
-  },
-
   createdAt: {
     type: Date,
     default: Date.now

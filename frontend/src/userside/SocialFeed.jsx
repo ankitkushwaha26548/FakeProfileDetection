@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Heart, MessageCircle, Share2, Bookmark, MoreVertical,
-  AlertTriangle, CheckCircle, XCircle, Send
+  AlertTriangle, CheckCircle, XCircle, Send, Shield
 } from 'lucide-react';
 import * as postApi from '../api/postApi';
 
@@ -33,7 +33,7 @@ export default function FeedSystem() {
             _id: p.user?._id,
             name: p.user?.name || 'Unknown',
             image: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=10b981&color=fff`,
-            riskLevel: p.user?.riskLevel || 'GENUINE',
+            riskLevel: p.user?.riskLevel ?? 'GENUINE',
           },
           content: p.content,
           timestamp: p.createdAt ? new Date(p.createdAt).toLocaleString() : '',
@@ -151,8 +151,8 @@ export default function FeedSystem() {
           </div>
           <div className="flex gap-2">
             <Link to="/post" className="text-indigo-600 hover:underline">Create Post</Link>
-            <Link to="/profile" className="text-indigo-600 hover:underline">Profile</Link>
             <Link to="/activity" className="text-indigo-600 hover:underline">Activity</Link>
+            <Link to="/profile" className="text-indigo-600 hover:underline">Profile</Link>
           </div>
         </div>
       </div>
@@ -187,8 +187,14 @@ export default function FeedSystem() {
           {posts.map((post) => (
             <div 
               key={post.id} 
-              className={`bg-white rounded-2xl shadow-sm border-2 transition-all ${getPostBorderColor(post.user.riskLevel)}`}
+              className={`bg-white rounded-2xl shadow-sm border-2 transition-all relative ${getPostBorderColor(post.user.riskLevel)}`}
             >
+              {/* FAKE Account Blur Overlay */}
+              {post.user.riskLevel === "FAKE" && (
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center text-red-600 font-bold rounded-2xl z-10">
+                  FAKE ACCOUNT CONTENT
+                </div>
+              )}
               
               {/* Post Header */}
               <div className="p-6">
@@ -265,10 +271,13 @@ export default function FeedSystem() {
                 
                 <button
                   onClick={() => handleLike(post.id)}
+                  disabled={post.user.riskLevel === "FAKE"}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all flex-1 justify-center ${
-                    post.isLiked 
-                      ? 'text-red-600 bg-red-50 hover:bg-red-100' 
-                      : 'text-gray-600 hover:bg-gray-100'
+                    post.user.riskLevel === "FAKE"
+                      ? 'opacity-50 cursor-not-allowed text-gray-400'
+                      : post.isLiked 
+                        ? 'text-red-600 bg-red-50 hover:bg-red-100' 
+                        : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   <Heart 
@@ -280,19 +289,31 @@ export default function FeedSystem() {
                 {/* Comment Button */}
                 <button
                   onClick={() => toggleComments(post.id)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors flex-1 justify-center"
+                  disabled={post.user.riskLevel === "FAKE"}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors flex-1 justify-center ${
+                    post.user.riskLevel === "FAKE"
+                      ? 'opacity-50 cursor-not-allowed text-gray-400'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
                 >
                   <MessageCircle className="w-5 h-5" />
                   <span className="font-medium text-sm">Comment</span>
                 </button>
 
                 {/* Share Button */}
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors flex-1 justify-center">
+                <button 
+                  disabled={post.user.riskLevel === "FAKE"}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors flex-1 justify-center ${
+                    post.user.riskLevel === "FAKE"
+                      ? 'opacity-50 cursor-not-allowed text-gray-400'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
                   <Share2 className="w-5 h-5" />
                   <span className="font-medium text-sm">Share</span>
                 </button>
 
-                <span className="p-2 text-gray-400 cursor-default">
+                <span className={`p-2 ${post.user.riskLevel === "FAKE" ? 'opacity-50 cursor-not-allowed text-gray-400' : 'text-gray-400 cursor-default'}`}>
                   <Bookmark className="w-5 h-5" />
                 </span>
               </div>
