@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 function LandingPage() {
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-black text-white"> {/* Fixed: bg-linear-to-br → bg-gradient-to-br */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black text-white">
 
       {/*hero section */}
       <section className="text-center px-6 py-24">

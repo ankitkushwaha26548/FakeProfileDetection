@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, CheckCircle, XCircle, Activity as ActivityIcon, TrendingUp } from "lucide-react";
+import Header from "../components/Header";
 import * as activityApi from "../api/activityApi";
 import * as detectionApi from "../api/detectionApi";
 
@@ -14,6 +15,7 @@ function Activity() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const [activitiesRes, riskRes] = await Promise.all([
           activityApi.getMyActivities(),
           detectionApi.getMyRisk().catch(() => ({ data: null })),
@@ -21,7 +23,14 @@ function Activity() {
         setActivities(activitiesRes.data || []);
         setRisk(riskRes.data || null);
       } catch (err) {
-        setError(err.response?.data?.message || "Failed to load activity");
+        const status = err.response?.status;
+        if (status === 429) {
+          setActivities([]);
+          setRisk(null);
+          setError(null);
+        } else {
+          setError(err.response?.data?.message || "Failed to load activity");
+        }
       } finally {
         setLoading(false);
       }
@@ -60,18 +69,28 @@ function Activity() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading activity...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading activity...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-2">{error}</p>
-          <Link to="/socialfeed" className="text-indigo-600 hover:underline">Back to Feed</Link>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 mb-4 font-medium">{error}</p>
+            <Link to="/socialfeed" className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Back to Feed</Link>
+          </div>
         </div>
       </div>
     );
@@ -79,15 +98,7 @@ function Activity() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Activity</h1>
-            <p className="text-sm text-gray-500 mt-1">All your account actions and security events</p>
-          </div>
-          <Link to="/socialfeed" className="text-indigo-600 hover:text-indigo-700 font-medium">Back to Feed</Link>
-        </div>
-      </div>
+      <Header />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
@@ -154,7 +165,7 @@ function Activity() {
               {activities.map((a, index) => (
                 <div key={a._id || index} className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-50 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-indigo-50 shrink-0">
                       <ActivityIcon className="w-5 h-5 text-indigo-600" />
                     </div>
                     {index !== activities.length - 1 && (

@@ -4,6 +4,7 @@ import {
   Heart, MessageCircle, Send, Image as ImageIcon, AlertTriangle,
   MoreVertical, Flag
 } from 'lucide-react';
+import Header from '../components/Header';
 import * as postApi from '../api/postApi';
 import * as detectionApi from '../api/detectionApi';
 
@@ -130,17 +131,8 @@ export default function PostSystem() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">Create Post</h1>
-            <p className="text-sm text-gray-500">Share what's on your mind</p>
-          </div>
-          <Link to="/socialfeed" className="text-indigo-600 hover:underline">Back to Feed</Link>
-        </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <Header />
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
         {/* Bot Detection Alert */}
         {showAlert && (
@@ -217,8 +209,21 @@ export default function PostSystem() {
           </form>
         </div>
 
+        {/* Empty State */}
+        {!loading && posts.length === 0 && (
+          <div className="text-center py-12">
+            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">No posts in feed yet</h3>
+            <p className="text-gray-500">Be the first to share something or refresh to see more posts</p>
+          </div>
+        )}
+
+        {/* Loading State */}
         {loading && posts.length === 0 ? (
-          <p className="text-gray-500 py-4">Loading posts...</p>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading posts...</p>
+          </div>
         ) : null}
         {posts.map((post) => (
           <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-200">

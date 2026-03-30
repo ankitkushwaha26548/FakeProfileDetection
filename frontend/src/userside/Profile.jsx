@@ -4,6 +4,7 @@ import {
   Shield, Activity, Smartphone, Clock, MapPin, Mail,
   User, CheckCircle, AlertTriangle, SmartphoneNfc, TrendingUp
 } from 'lucide-react';
+import Header from '../components/Header';
 import * as profileApi from '../api/profileApi';
 import * as detectionApi from '../api/detectionApi';
 import * as activityApi from '../api/activityApi';
@@ -33,6 +34,7 @@ export default function ProfileDashboard() {
     const load = async () => {
       try {
         setLoading(true);
+        setError(null);
         const [profileRes, riskRes, activitiesRes, loginLogsRes] = await Promise.all([
           profileApi.getProfile(),
           detectionApi.getMyRisk().catch(() => ({ data: { level: 'GENUINE', score: 0 } })),
@@ -81,7 +83,21 @@ export default function ProfileDashboard() {
           type: a.type,
         })));
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load profile');
+        const status = err.response?.status;
+        if (status === 429) {
+          setError(null);
+          setUserData((prev) => ({
+            ...prev,
+            name: prev.name || 'User',
+          }));
+          setActivities([]);
+          setStats((prev) => ({
+            ...prev,
+            activityCount: 0,
+          }));
+        } else {
+          setError(err.response?.data?.message || 'Failed to load profile');
+        }
       } finally {
         setLoading(false);
       }
@@ -124,17 +140,27 @@ export default function ProfileDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading profile...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading profile...</p>
+          </div>
+        </div>
       </div>
     );
   }
   if (error && !userData.name) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-2">{error}</p>
-          <Link to="/socialfeed" className="text-indigo-600">Back to Feed</Link>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <p className="text-red-600 mb-4 font-medium">{error}</p>
+            <Link to="/socialfeed" className="inline-block px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Back to Feed</Link>
+          </div>
         </div>
       </div>
     );
@@ -142,16 +168,7 @@ export default function ProfileDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Profile Security Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">AI-powered fake profile risk analysis</p>
-          </div>
-          <Link to="/socialfeed" className="text-indigo-600 hover:underline">Back to Feed</Link>
-        </div>
-      </div>
-
+      <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           

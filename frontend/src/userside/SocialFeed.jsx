@@ -4,6 +4,7 @@ import {
   Heart, MessageCircle, Share2, Bookmark, MoreVertical,
   AlertTriangle, CheckCircle, XCircle, Send, Shield
 } from 'lucide-react';
+import Header from '../components/Header';
 import * as postApi from '../api/postApi';
 
 const currentUserId = () => {
@@ -24,6 +25,7 @@ export default function FeedSystem() {
   const loadFeed = async () => {
     try {
       setLoading(true);
+      setError(null);
       const { data } = await postApi.getFeed();
       setPosts(
         (data || []).map((p) => ({
@@ -51,7 +53,14 @@ export default function FeedSystem() {
         }))
       );
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load feed');
+      const status = err.response?.status;
+      // Keep feed page usable even if backend throttles briefly.
+      if (status === 429) {
+        setPosts([]);
+        setError(null);
+      } else {
+        setError(err.response?.data?.message || 'Failed to load feed');
+      }
     } finally {
       setLoading(false);
     }
@@ -143,23 +152,48 @@ export default function FeedSystem() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Social Feed</h1>
-            <p className="text-sm text-gray-500">AI-powered security monitoring</p>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/post" className="text-indigo-600 hover:underline">Create Post</Link>
-            <Link to="/activity" className="text-indigo-600 hover:underline">Activity</Link>
-            <Link to="/profile" className="text-indigo-600 hover:underline">Profile</Link>
+      <Header />
+
+      {loading && posts.length === 0 && (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading feed...</p>
           </div>
         </div>
-      </div>
-      {error && <div className="max-w-2xl mx-auto px-4 py-2 text-red-600">{error}</div>}
+      )}
+
+      {!loading && posts.length === 0 && (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">No posts yet</h3>
+            <p className="text-gray-500 mb-6">Be the first to share something!</p>
+            <Link
+              to="/post"
+              className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Create a Post
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="max-w-2xl mx-auto px-4 py-4 mt-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Error loading feed</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Feed Container */}
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      {posts.length > 0 && (
+      <div className="max-w-2xl mx-auto px-4 py-8">
         
         {/* Legend */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-6">
@@ -358,6 +392,7 @@ export default function FeedSystem() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }
