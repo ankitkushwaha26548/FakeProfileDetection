@@ -1,6 +1,5 @@
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js";
-import adminMiddleware from "../middleware/adminMiddleware.js";
 import { getDashboardStats, getUsersWithRisk, getFakeUsers, getSuspiciousUsers, getLoginLogs, flagUser } from "../controllers/adminController.js";
 
 const router = express.Router();

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Heart, MessageCircle, Send, Image as ImageIcon, AlertTriangle,
-  MoreVertical, Flag
+  Heart, MessageCircle, Send, Image as ImageIcon,
+  AlertTriangle, MoreVertical
 } from 'lucide-react';
 import Header from '../components/Header';
 import * as postApi from '../api/postApi';
@@ -19,13 +18,13 @@ export default function PostSystem() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newPost, setNewPost] = useState('');
-  const [showAlert, setShowAlert] = useState(false);
-  const [alertDetail, setAlertDetail] = useState(null);
-  const [lastPostTime, setLastPostTime] = useState(null);
+  const [posting, setPosting] = useState(false);
   const [showComments, setShowComments] = useState({});
   const [newComment, setNewComment] = useState({});
-  const [posting, setPosting] = useState(false);
+  // Own-account warning only
+  const [ownWarning, setOwnWarning] = useState(null); // { level, message }
   const myId = currentUserId();
+  const warningTimer = useRef(null);
 
   const loadFeed = async () => {
     try {
@@ -34,10 +33,8 @@ export default function PostSystem() {
       setPosts(
         (data || []).map((p) => ({
           id: p._id,
-          _id: p._id,
           author: p.user?.name || 'Unknown',
           authorImage: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=6366f1&color=fff`,
-          riskLevel: p.user?.riskLevel || 'GENUINE',
           content: p.content,
           timestamp: p.createdAt ? new Date(p.createdAt).toLocaleString() : '',
           likes: Array.isArray(p.likes) ? p.likes.length : 0,
@@ -58,38 +55,36 @@ export default function PostSystem() {
     }
   };
 
-  useEffect(() => {
-    loadFeed();
-  }, []);
+  useEffect(() => { loadFeed(); }, []);
+
+  // Show own-account warning banner for 6 seconds then auto-dismiss
+  const showOwnAccountWarning = (level, reasons) => {
+    if (level === 'GENUINE') return;
+    const msg = level === 'FAKE'
+      ? 'Your account has been flagged. Please review your activity.'
+      : 'Your account shows unusual activity. Slow down to avoid being flagged.';
+    setOwnWarning({ level, message: msg, reasons });
+    if (warningTimer.current) clearTimeout(warningTimer.current);
+    warningTimer.current = setTimeout(() => setOwnWarning(null), 6000);
+  };
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
     if (!newPost.trim() || posting) return;
-    const now = Date.now();
-    const timeSinceLastPost = lastPostTime ? (now - lastPostTime) / 1000 : 9999;
-    if (timeSinceLastPost < 30) setShowAlert(true);
     setPosting(true);
     try {
       await postApi.createPost({ content: newPost.trim() });
       setNewPost('');
-      setLastPostTime(now);
-      
-      // 🔥 Check detected risk level after posting
+      // Check own risk silently after posting
       try {
         const riskRes = await detectionApi.getMyRisk();
-        if (riskRes.data?.level && riskRes.data.level !== 'GENUINE') {
-          setAlertDetail(riskRes.data);
-          setShowAlert(true);
+        if (riskRes.data?.level) {
+          showOwnAccountWarning(riskRes.data.level, riskRes.data.reasons);
         }
-      } catch (err) {
-        console.log('Could not fetch risk level:', err.message);
-      }
-      
+      } catch (_) {}
       loadFeed();
     } catch (_) {}
-    finally {
-      setPosting(false);
-    }
+    finally { setPosting(false); }
   };
 
   const handleLike = async (postId) => {
@@ -98,20 +93,14 @@ export default function PostSystem() {
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
-            ? {
-                ...p,
-                likes: p.isLiked ? p.likes - 1 : p.likes + 1,
-                isLiked: !p.isLiked,
-              }
+            ? { ...p, likes: p.isLiked ? p.likes - 1 : p.likes + 1, isLiked: !p.isLiked }
             : p
         )
       );
     } catch (_) {}
   };
 
-  const toggleComments = (postId) => {
-    setShowComments((s) => ({ ...s, [postId]: !s[postId] }));
-  };
+  const toggleComments = (postId) => setShowComments((s) => ({ ...s, [postId]: !s[postId] }));
 
   const handleAddComment = async (postId) => {
     const text = newComment[postId]?.trim();
@@ -123,84 +112,69 @@ export default function PostSystem() {
     } catch (_) {}
   };
 
-  const getRiskBadge = (level) => {
-    if (level === "GENUINE") return "bg-green-100 text-green-700";
-    if (level === "SUSPICIOUS") return "bg-yellow-100 text-yellow-700";
-    return "bg-red-100 text-red-700";
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
 
-        {/* Bot Detection Alert */}
-        {showAlert && (
-          <div className={`border rounded-xl p-4 flex items-start gap-3 animate-pulse ${
-            alertDetail && alertDetail.level !== 'GENUINE'
+        {/* Own-account gentle warning — only visible if flagged */}
+        {ownWarning && (
+          <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
+            ownWarning.level === 'FAKE'
               ? 'bg-red-50 border-red-200'
               : 'bg-yellow-50 border-yellow-200'
           }`}>
-            <AlertTriangle className={`w-5 h-5 mt-0.5 ${
-              alertDetail && alertDetail.level !== 'GENUINE'
-                ? 'text-red-600'
-                : 'text-yellow-600'
+            <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${
+              ownWarning.level === 'FAKE' ? 'text-red-500' : 'text-yellow-500'
             }`} />
-            <div>
-              <p className={`font-semibold ${
-                alertDetail && alertDetail.level !== 'GENUINE'
-                  ? 'text-red-900'
-                  : 'text-yellow-900'
+            <div className="flex-1">
+              <p className={`text-sm font-semibold ${
+                ownWarning.level === 'FAKE' ? 'text-red-800' : 'text-yellow-800'
               }`}>
-                {alertDetail && alertDetail.level !== 'GENUINE' 
-                  ? '🚨 Detection Alert' 
-                  : '⚠ Unusual activity detected'}
+                {ownWarning.level === 'FAKE' ? 'Account flagged' : 'Unusual activity detected'}
               </p>
-              <p className={`text-sm ${
-                alertDetail && alertDetail.level !== 'GENUINE'
-                  ? 'text-red-700'
-                  : 'text-yellow-700'
+              <p className={`text-xs mt-0.5 ${
+                ownWarning.level === 'FAKE' ? 'text-red-600' : 'text-yellow-600'
               }`}>
-                {alertDetail && alertDetail.level !== 'GENUINE'
-                  ? `Risk Level: ${alertDetail.level} (Score: ${alertDetail.score || 0}). ${alertDetail.reasons?.join(', ') || 'Review your account activity.'}`
-                  : 'Rapid posting detected. Please slow down to avoid being flagged.'}
+                {ownWarning.message}
               </p>
             </div>
+            <button
+              onClick={() => setOwnWarning(null)}
+              className="text-gray-400 hover:text-gray-600 text-xs ml-2"
+            >
+              ✕
+            </button>
           </div>
         )}
 
-        {/* Create Post Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        {/* Create Post */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
           <form onSubmit={handleCreatePost}>
             <div className="flex gap-3">
-              <img 
-                src="https://ui-avatars.com/api/?name=John+Doe&background=6366f1&color=fff" 
-                alt="User" 
-                className="w-12 h-12 rounded-full"
+              <img
+                src="https://ui-avatars.com/api/?name=Me&background=6366f1&color=fff"
+                alt="You"
+                className="w-10 h-10 rounded-full shrink-0"
               />
               <div className="flex-1">
                 <textarea
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
                   placeholder="What's on your mind?"
-                  className="w-full border border-gray-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                   rows="3"
                 />
-                
-                <div className="flex items-center justify-between mt-3">
-                  <button 
-                    type="button"
-                    className="text-gray-500 hover:text-indigo-600 transition-colors"
-                  >
+                <div className="flex items-center justify-between mt-2">
+                  <button type="button" className="text-gray-400 hover:text-indigo-500 transition-colors">
                     <ImageIcon className="w-5 h-5" />
                   </button>
-                  
                   <button
                     type="submit"
-                    disabled={posting}
-                    className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                    disabled={posting || !newPost.trim()}
+                    className="bg-indigo-600 text-white px-5 py-1.5 rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-40 flex items-center gap-2 font-medium"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-3.5 h-3.5" />
                     {posting ? 'Posting...' : 'Post'}
                   </button>
                 </div>
@@ -209,148 +183,98 @@ export default function PostSystem() {
           </form>
         </div>
 
-        {/* Empty State */}
-        {!loading && posts.length === 0 && (
+        {/* Loading */}
+        {loading && posts.length === 0 && (
           <div className="text-center py-12">
-            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No posts in feed yet</h3>
-            <p className="text-gray-500">Be the first to share something or refresh to see more posts</p>
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+            <p className="text-gray-400 text-sm">Loading posts...</p>
           </div>
         )}
 
-        {/* Loading State */}
-        {loading && posts.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading posts...</p>
-          </div>
-        ) : null}
+        {/* Posts Feed */}
         {posts.map((post) => (
           <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-200">
-            
-            {/* Post Header */}
-            <div className="p-6 pb-4">
+
+            {/* Header */}
+            <div className="p-5 pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex gap-3">
-                  <img 
-                    src={post.authorImage} 
-                    alt={post.author} 
-                    className="w-12 h-12 rounded-full"
-                  />
+                  <img src={post.authorImage} alt={post.author} className="w-10 h-10 rounded-full" />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-900">{post.author}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRiskBadge(post.riskLevel)}`}>
-                        {post.riskLevel}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-500">{post.timestamp}</p>
+                    <p className="font-semibold text-gray-900 text-sm">{post.author}</p>
+                    <p className="text-xs text-gray-400">{post.timestamp}</p>
                   </div>
                 </div>
-                
                 <button className="text-gray-400 hover:text-gray-600">
-                  <MoreVertical className="w-5 h-5" />
+                  <MoreVertical className="w-4 h-4" />
                 </button>
               </div>
-
-              {/* Post Content */}
-              <p className="mt-4 text-gray-800 leading-relaxed">{post.content}</p>
-
-              {/* Suspicious Post Warning */}
-              {post.riskLevel === "SUSPICIOUS" && (
-                <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                  <span className="text-sm text-yellow-800">This post may contain suspicious content</span>
-                </div>
-              )}
+              <p className="mt-3 text-gray-800 text-sm leading-relaxed">{post.content}</p>
             </div>
 
-            {/* Post Stats */}
-            <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
+            {/* Stats */}
+            <div className="px-5 py-2 border-t border-gray-100 flex justify-between text-xs text-gray-400">
               <span>{post.likes} likes</span>
               <span>{post.comments} comments</span>
             </div>
 
-            {/* Post Actions */}
-            <div className="px-6 py-3 border-t border-gray-100 flex gap-2">
+            {/* Actions */}
+            <div className="px-5 py-2 border-t border-gray-100 flex gap-1">
               <button
                 onClick={() => handleLike(post.id)}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all ${
-                  post.isLiked 
-                    ? 'text-red-600 bg-red-50 hover:bg-red-100' 
-                    : 'text-gray-600 hover:bg-gray-100'
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  post.isLiked ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-gray-500 hover:bg-gray-100'
                 }`}
               >
-                <Heart 
-                  className={`w-5 h-5 ${post.isLiked ? 'fill-red-600' : ''}`} 
-                />
-                <span className="font-medium">Like</span>
+                <Heart className={`w-3.5 h-3.5 ${post.isLiked ? 'fill-red-600' : ''}`} />
+                Like
               </button>
-
               <button
                 onClick={() => toggleComments(post.id)}
-                className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors"
               >
-                <MessageCircle className="w-5 h-5" />
-                <span className="font-medium">Comment</span>
-              </button>
-
-              <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors">
-                <Flag className="w-5 h-5" />
-                <span className="font-medium">Report</span>
+                <MessageCircle className="w-3.5 h-3.5" />
+                Comment
               </button>
             </div>
 
-            {/* Comments Section */}
+            {/* Comments */}
             {showComments[post.id] && (
-              <div className="px-6 pb-6 border-t border-gray-100">
-                
-                {/* Existing Comments */}
-                <div className="mt-4 space-y-3">
-                  {post.commentsList.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <img 
-                        src={`https://ui-avatars.com/api/?name=${comment.user}&background=6366f1&color=fff`}
-                        alt={comment.user} 
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div className="flex-1 bg-gray-50 rounded-xl p-3">
-                        <p className="font-semibold text-sm">{comment.user}</p>
-                        <p className="text-sm text-gray-800 mt-1">{comment.text}</p>
-                        <p className="text-xs text-gray-500 mt-1">{comment.time}</p>
+              <div className="px-5 pb-5 border-t border-gray-100">
+                {post.commentsList?.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {post.commentsList.map((c) => (
+                      <div key={c.id} className="flex gap-2">
+                        <img
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(c.user)}&background=6366f1&color=fff`}
+                          alt={c.user}
+                          className="w-7 h-7 rounded-full shrink-0"
+                        />
+                        <div className="flex-1 bg-gray-50 rounded-xl px-3 py-2">
+                          <p className="text-xs font-semibold text-gray-900">{c.user}</p>
+                          <p className="text-xs text-gray-700 mt-0.5">{c.text}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Add Comment */}
-                <div className="mt-4 flex gap-2">
-                  <img 
-                    src="https://ui-avatars.com/api/?name=John+Doe&background=6366f1&color=fff" 
-                    alt="You" 
-                    className="w-8 h-8 rounded-full"
-                  />
+                    ))}
+                  </div>
+                )}
+                <div className="mt-3 flex gap-2">
                   <input
                     type="text"
                     value={newComment[post.id] || ''}
                     onChange={(e) => setNewComment({ ...newComment, [post.id]: e.target.value })}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddComment(post.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
                     placeholder="Write a comment..."
-                    className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="flex-1 border border-gray-200 rounded-full px-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
-                  <button
-                    onClick={() => handleAddComment(post.id)}
-                    className="text-indigo-600 hover:text-indigo-700"
-                  >
-                    <Send className="w-5 h-5" />
+                  <button onClick={() => handleAddComment(post.id)} className="text-indigo-600 hover:text-indigo-700 p-1.5">
+                    <Send className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             )}
-
           </div>
         ))}
-
       </div>
     </div>
   );

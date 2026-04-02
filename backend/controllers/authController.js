@@ -101,7 +101,9 @@ export const loginUser = async (req, res) => {
                 device: req.headers["user-agent"] || 'unknown',
                 location: "Unknown"
             });
-            await runDetection(user._id);
+            runDetection(user._id).catch((err) => {
+                console.error("Background detection failed (login):", err.message);
+            });
             await logActivity(user._id, "LOGIN", null, {
                 ip: req.ip,
                 userAgent: req.headers['user-agent']

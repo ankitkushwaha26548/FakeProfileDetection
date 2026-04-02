@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Heart, MessageCircle, Share2, Bookmark, MoreVertical,
-  AlertTriangle, CheckCircle, XCircle, Send, Shield
+  AlertTriangle, Send
 } from 'lucide-react';
 import Header from '../components/Header';
 import * as postApi from '../api/postApi';
@@ -14,7 +14,7 @@ const currentUserId = () => {
   } catch { return null; }
 };
 
-export default function FeedSystem() {
+export default function SocialFeed() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,20 +30,16 @@ export default function FeedSystem() {
       setPosts(
         (data || []).map((p) => ({
           id: p._id,
-          _id: p._id,
           user: {
             _id: p.user?._id,
             name: p.user?.name || 'Unknown',
-            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=10b981&color=fff`,
-            riskLevel: p.user?.riskLevel ?? 'GENUINE',
+            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=6366f1&color=fff`,
           },
           content: p.content,
           timestamp: p.createdAt ? new Date(p.createdAt).toLocaleString() : '',
           likes: Array.isArray(p.likes) ? p.likes.length : 0,
           comments: Array.isArray(p.comments) ? p.comments.length : 0,
-          shares: 0,
           isLiked: Array.isArray(p.likes) && myId && p.likes.some((id) => String(id) === String(myId)),
-          isBookmarked: false,
           commentsList: (p.comments || []).map((c) => ({
             id: c._id,
             user: c.user?.name || 'User',
@@ -53,12 +49,7 @@ export default function FeedSystem() {
         }))
       );
     } catch (err) {
-      const status = err.response?.status;
-      // Keep feed page usable even if backend throttles briefly.
-      if (status === 429) {
-        setPosts([]);
-        setError(null);
-      } else {
+      if (err.response?.status !== 429) {
         setError(err.response?.data?.message || 'Failed to load feed');
       }
     } finally {
@@ -66,23 +57,15 @@ export default function FeedSystem() {
     }
   };
 
-  useEffect(() => {
-    loadFeed();
-  }, []);
+  useEffect(() => { loadFeed(); }, []);
 
   const handleLike = async (postId) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
     try {
       await postApi.likePost(postId);
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
-            ? {
-                ...p,
-                likes: p.isLiked ? p.likes - 1 : p.likes + 1,
-                isLiked: !p.isLiked,
-              }
+            ? { ...p, likes: p.isLiked ? p.likes - 1 : p.likes + 1, isLiked: !p.isLiked }
             : p
         )
       );
@@ -99,53 +82,20 @@ export default function FeedSystem() {
     } catch (_) {}
   };
 
-  const getRiskBadgeColor = (level) => {
-    switch(level) {
-      case "GENUINE":
-        return "bg-green-100 text-green-700 border-green-200";
-      case "SUSPICIOUS":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "FAKE":
-        return "bg-red-100 text-red-700 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
-
-  const getRiskIcon = (level) => {
-    switch(level) {
-      case "GENUINE":
-        return <CheckCircle className="w-4 h-4" />;
-      case "SUSPICIOUS":
-        return <AlertTriangle className="w-4 h-4" />;
-      case "FAKE":
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <Shield className="w-4 h-4" />;
-    }
-  };
-
-  const getPostBorderColor = (level) => {
-    switch(level) {
-      case "GENUINE":
-        return "border-green-200 hover:border-green-300";
-      case "SUSPICIOUS":
-        return "border-yellow-200 hover:border-yellow-300";
-      case "FAKE":
-        return "border-red-200 hover:border-red-300";
-      default:
-        return "border-gray-200 hover:border-gray-300";
-    }
-  };
-
   const toggleComments = (postId) => {
     setShowComments((s) => ({ ...s, [postId]: !s[postId] }));
   };
 
   if (loading && posts.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Loading feed...</p>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Loading feed...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -154,25 +104,13 @@ export default function FeedSystem() {
     <div className="min-h-screen bg-gray-50">
       <Header />
 
-      {loading && posts.length === 0 && (
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading feed...</p>
-          </div>
-        </div>
-      )}
-
       {!loading && posts.length === 0 && (
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-2xl font-bold text-gray-900 mb-2">No posts yet</h3>
             <p className="text-gray-500 mb-6">Be the first to share something!</p>
-            <Link
-              to="/post"
-              className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
-            >
+            <Link to="/post" className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
               Create a Post
             </Link>
           </div>
@@ -183,184 +121,83 @@ export default function FeedSystem() {
         <div className="max-w-2xl mx-auto px-4 py-4 mt-4">
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Error loading feed</p>
-              <p className="text-sm mt-1">{error}</p>
-            </div>
+            <p className="text-sm">{error}</p>
           </div>
         </div>
       )}
 
-      {/* Feed Container */}
       {posts.length > 0 && (
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        
-        {/* Legend */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-6">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <h3 className="text-sm font-semibold text-gray-900">Risk Level Indicators:</h3>
-            <div className="flex gap-3 flex-wrap">
-              <div className="flex items-center gap-1">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="text-xs font-medium text-green-700">Genuine</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                <span className="text-xs font-medium text-yellow-700">Suspicious</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <XCircle className="w-4 h-4 text-red-600" />
-                <span className="text-xs font-medium text-red-700">Fake</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Posts */}
-        <div className="space-y-6">
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
           {posts.map((post) => (
-            <div 
-              key={post.id} 
-              className={`bg-white rounded-2xl shadow-sm border-2 transition-all relative ${getPostBorderColor(post.user.riskLevel)}`}
-            >
-              {/* FAKE Account Blur Overlay */}
-              {post.user.riskLevel === "FAKE" && (
-                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center text-red-600 font-bold rounded-2xl z-10">
-                  FAKE ACCOUNT CONTENT
-                </div>
-              )}
-              
+            <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-200">
+
               {/* Post Header */}
-              <div className="p-6">
+              <div className="p-6 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex gap-3">
-                    {/* User Avatar */}
-                    <img 
-                      src={post.user.image} 
-                      alt={post.user.name} 
-                      className="w-12 h-12 rounded-full"
-                    />
-                    
-                    {/* User Info */}
+                    <img src={post.user.image} alt={post.user.name} className="w-11 h-11 rounded-full" />
                     <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">{post.user.name}</h3>
-                        
-                        {/* Risk Badge */}
-                        <span className={`px-2 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1 ${getRiskBadgeColor(post.user.riskLevel)}`}>
-                          {getRiskIcon(post.user.riskLevel)}
-                          {post.user.riskLevel}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500">{post.timestamp}</p>
+                      <h3 className="font-semibold text-gray-900">{post.user.name}</h3>
+                      <p className="text-xs text-gray-400">{post.timestamp}</p>
                     </div>
                   </div>
-                  
-                  {/* More Options */}
                   <button className="text-gray-400 hover:text-gray-600 transition-colors">
                     <MoreVertical className="w-5 h-5" />
                   </button>
                 </div>
-
-                {/* Post Content */}
-                <p className="mt-4 text-gray-800 leading-relaxed">
-                  {post.content}
-                </p>
-
-                {/* Warning Banners */}
-                {post.user.riskLevel === "SUSPICIOUS" && (
-                  <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-yellow-900">Suspicious Activity</p>
-                      <p className="text-xs text-yellow-700">This user has been flagged for unusual behavior patterns.</p>
-                    </div>
-                  </div>
-                )}
-
-                {post.user.riskLevel === "FAKE" && (
-                  <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                    <XCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-red-900">Fake Account Detected</p>
-                      <p className="text-xs text-red-700">This account has been identified as fake. Exercise caution with content.</p>
-                    </div>
-                  </div>
-                )}
+                <p className="mt-4 text-gray-800 leading-relaxed">{post.content}</p>
               </div>
 
               {/* Post Stats */}
-              <div className="px-6 py-3 border-t border-gray-100">
-                <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span className="hover:underline cursor-pointer">{post.likes} likes</span>
-                  <div className="flex gap-3">
-                    <span className="hover:underline cursor-pointer">{post.comments} comments</span>
-                    <span className="hover:underline cursor-pointer">{post.shares} shares</span>
-                  </div>
-                </div>
+              <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm text-gray-400">
+                <span>{post.likes} likes</span>
+                <span>{post.comments} comments</span>
               </div>
 
               {/* Action Buttons */}
-              <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                
+              <div className="px-6 py-2 border-t border-gray-100 flex gap-1">
                 <button
                   onClick={() => handleLike(post.id)}
-                  disabled={post.user.riskLevel === "FAKE"}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all flex-1 justify-center ${
-                    post.user.riskLevel === "FAKE"
-                      ? 'opacity-50 cursor-not-allowed text-gray-400'
-                      : post.isLiked 
-                        ? 'text-red-600 bg-red-50 hover:bg-red-100' 
-                        : 'text-gray-600 hover:bg-gray-100'
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-sm font-medium ${
+                    post.isLiked ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <Heart 
-                    className={`w-5 h-5 ${post.isLiked ? 'fill-red-600' : ''}`} 
-                  />
-                  <span className="font-medium text-sm">Like</span>
+                  <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-red-600' : ''}`} />
+                  Like
                 </button>
-
-                {/* Comment Button */}
                 <button
                   onClick={() => toggleComments(post.id)}
-                  disabled={post.user.riskLevel === "FAKE"}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors flex-1 justify-center ${
-                    post.user.riskLevel === "FAKE"
-                      ? 'opacity-50 cursor-not-allowed text-gray-400'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
+                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium"
                 >
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="font-medium text-sm">Comment</span>
+                  <MessageCircle className="w-4 h-4" />
+                  Comment
                 </button>
-
-                {/* Share Button */}
-                <button 
-                  disabled={post.user.riskLevel === "FAKE"}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors flex-1 justify-center ${
-                    post.user.riskLevel === "FAKE"
-                      ? 'opacity-50 cursor-not-allowed text-gray-400'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Share2 className="w-5 h-5" />
-                  <span className="font-medium text-sm">Share</span>
+                <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium">
+                  <Share2 className="w-4 h-4" />
+                  Share
                 </button>
-
-                <span className={`p-2 ${post.user.riskLevel === "FAKE" ? 'opacity-50 cursor-not-allowed text-gray-400' : 'text-gray-400 cursor-default'}`}>
-                  <Bookmark className="w-5 h-5" />
-                </span>
+                <button className="px-3 py-2 text-gray-400 hover:text-gray-600 transition-colors">
+                  <Bookmark className="w-4 h-4" />
+                </button>
               </div>
 
+              {/* Comments Section */}
               {showComments[post.id] && (
-                <div className="px-6 pb-6 border-t border-gray-100">
+                <div className="px-6 pb-5 border-t border-gray-100">
                   {post.commentsList?.length > 0 && (
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-4 space-y-3">
                       {post.commentsList.map((c) => (
-                        <div key={c.id} className="flex gap-2 text-sm">
-                          <span className="font-semibold text-gray-700">{c.user}:</span>
-                          <span className="text-gray-800">{c.text}</span>
-                          <span className="text-gray-400 text-xs">{c.time}</span>
+                        <div key={c.id} className="flex gap-3">
+                          <img
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(c.user)}&background=6366f1&color=fff`}
+                            alt={c.user}
+                            className="w-8 h-8 rounded-full shrink-0"
+                          />
+                          <div className="flex-1 bg-gray-50 rounded-xl px-4 py-2">
+                            <p className="text-sm font-semibold text-gray-900">{c.user}</p>
+                            <p className="text-sm text-gray-700 mt-0.5">{c.text}</p>
+                            <p className="text-xs text-gray-400 mt-1">{c.time}</p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -372,26 +209,23 @@ export default function FeedSystem() {
                       onChange={(e) => setCommentText((c) => ({ ...c, [post.id]: e.target.value }))}
                       onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
                       placeholder="Write a comment..."
-                      className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     />
                     <button onClick={() => handleAddComment(post.id)} className="text-indigo-600 hover:text-indigo-700 p-2">
-                      <Send className="w-5 h-5" />
+                      <Send className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
               )}
-
             </div>
           ))}
-        </div>
 
-        <div className="mt-8 text-center">
-          <button onClick={loadFeed} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
-            Refresh Feed
-          </button>
+          <div className="text-center pt-2">
+            <button onClick={loadFeed} className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm font-medium">
+              Refresh Feed
+            </button>
+          </div>
         </div>
-
-      </div>
       )}
     </div>
   );

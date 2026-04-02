@@ -31,7 +31,9 @@ export const createOrUpdateProfile = async (req, res) => {
         profile.profileCompleteness = calculateProfileScore(profile);
 
         await profile.save();
-        await runDetection(req.user._id);
+        runDetection(req.user._id).catch((err) => {
+            console.error("Background detection failed (profile):", err.message);
+        });
 
         res.json({
             message: "Profile Saved",

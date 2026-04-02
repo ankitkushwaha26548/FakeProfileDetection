@@ -12,7 +12,9 @@ export const createPost = async (req, res) => {
     });
 
     await logActivity(req.user._id, "POST", post._id);
-    await runDetection(req.user._id);
+    runDetection(req.user._id).catch((err) => {
+        console.error("Background detection failed (create post):", err.message);
+    });
 
     res.status(201).json(post);
     } catch (error) {
@@ -30,7 +32,9 @@ export const likePost = async (req, res) => {
             await post.save();
 
             await logActivity(req.user._id, "LIKE_POST", post._id);
-            await runDetection(req.user._id);
+            runDetection(req.user._id).catch((err) => {
+                console.error("Background detection failed (like post):", err.message);
+            });
         }
 
         res.json(post);
@@ -52,7 +56,9 @@ export const commentOnPost = async (req, res) => {
         await post.save();
 
         await logActivity(req.user._id, "COMMENT", post._id);
-        await runDetection(req.user._id);
+        runDetection(req.user._id).catch((err) => {
+            console.error("Background detection failed (comment):", err.message);
+        });
 
         res.json(post);
     } catch (error) {
