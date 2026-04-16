@@ -1,212 +1,159 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  AlertTriangle, CheckCircle, XCircle,
-  Activity as ActivityIcon, TrendingUp, ShieldCheck
-} from "lucide-react";
-import Header from "../components/Header";
+import { ShieldCheck, AlertTriangle, XCircle, TrendingUp } from "lucide-react";
+import UserHeader from "../components/UserHeader";
 import * as activityApi from "../api/activityApi";
 import * as detectionApi from "../api/detectionApi";
 
-function Activity() {
+const LABELS = {
+  LOGIN:"Logged in", REGISTER:"Account created",
+  POST:"Created a post", LIKE_POST:"Liked a post", COMMENT:"Posted a comment",
+};
+
+export default function Activity() {
   const [activities, setActivities] = useState([]);
-  const [risk, setRisk] = useState(null);
+  const [risk, setRisk]   = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [a, r] = await Promise.all([
+        activityApi.getMyActivities(),
+        detectionApi.getMyRisk().catch(() => ({ data:null })),
+      ]);
+      setActivities(a.data || []);
+      setRisk(r.data || null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [activitiesRes, riskRes] = await Promise.all([
-          activityApi.getMyActivities(),
-          detectionApi.getMyRisk().catch(() => ({ data: null })),
-        ]);
-        setActivities(activitiesRes.data || []);
-        setRisk(riskRes.data || null);
-      } catch (err) {
-        if (err.response?.status !== 429) {
-          setError(err.response?.data?.message || "Failed to load activity");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  const getActivityTypeLabel = (type) => {
-    const labels = {
-      LOGIN: 'Logged in',
-      REGISTER: 'Account created',
-      POST: 'Created a post',
-      LIKE_POST: 'Liked a post',
-      COMMENT: 'Posted a comment',
-    };
-    return labels[type] || type;
-  };
-
-  // Only show a banner if SUSPICIOUS or FAKE — never show for GENUINE
-  const renderOwnAccountBanner = () => {
-    if (!risk || risk.level === 'GENUINE') return null;
-
-    const isFake = risk.level === 'FAKE';
-    return (
-      <div className={`mb-6 rounded-2xl border p-5 ${
-        isFake
-          ? 'bg-red-50 border-red-200'
-          : 'bg-yellow-50 border-yellow-200'
-      }`}>
-        <div className="flex items-start gap-3">
-          {isFake
-            ? <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
-            : <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 shrink-0" />
-          }
-          <div className="flex-1">
-            <p className={`font-semibold text-sm ${isFake ? 'text-red-800' : 'text-yellow-800'}`}>
-              {isFake
-                ? 'Your account has been flagged'
-                : 'Unusual activity detected on your account'}
-            </p>
-            <p className={`text-xs mt-1 ${isFake ? 'text-red-600' : 'text-yellow-600'}`}>
-              {isFake
-                ? 'Your account shows patterns associated with fake profiles. If you believe this is wrong, please reduce automated activity.'
-                : 'Your recent activity looks unusual. Slow down to keep your account in good standing.'}
-            </p>
-
-            {/* Risk score bar — shown but framed gently */}
-            {risk.score !== undefined && (
-              <div className="mt-3">
-                <div className="flex justify-between text-xs mb-1">
-                  <span className={isFake ? 'text-red-700' : 'text-yellow-700'}>Account standing</span>
-                  <span className={`font-semibold ${isFake ? 'text-red-700' : 'text-yellow-700'}`}>
-                    {100 - risk.score}% trust
-                  </span>
-                </div>
-                <div className="w-full bg-white/60 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${isFake ? 'bg-red-400' : 'bg-yellow-400'}`}
-                    style={{ width: `${100 - risk.score}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Show reasons in plain language, not raw detection labels */}
-            {risk.reasons?.filter(r => r.startsWith('❌') || r.startsWith('⚠️')).length > 0 && (
-              <div className="mt-3">
-                <p className={`text-xs font-semibold mb-1 ${isFake ? 'text-red-700' : 'text-yellow-700'}`}>
-                  What triggered this:
-                </p>
-                <ul className="space-y-0.5">
-                  {risk.reasons
-                    .filter(r => r.startsWith('❌') || r.startsWith('⚠️'))
-                    .map((reason, i) => (
-                      <li key={i} className={`text-xs ${isFake ? 'text-red-600' : 'text-yellow-600'}`}>
-                        {reason}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading activity...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-            <p className="text-red-600 text-sm mb-4">{error}</p>
-            <Link to="/socialfeed" className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
-              Back to Feed
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isFlagged = risk && risk.level !== "GENUINE";
+  const isFake    = risk?.level === "FAKE";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+    <div className="min-h-screen bg-[#09090f]">
+      <UserHeader />
 
-        {/* Own account banner — only if flagged */}
-        {renderOwnAccountBanner()}
+      <div className="max-w-xl mx-auto px-4 py-6">
 
-        {/* If GENUINE — show a clean "all good" card */}
-        {risk && risk.level === 'GENUINE' && (
-          <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4 flex items-center gap-3">
-            <ShieldCheck className="w-5 h-5 text-green-600 shrink-0" />
-            <p className="text-sm text-green-700 font-medium">Your account is in good standing.</p>
+        {/* Loader */}
+        {loading && (
+          <div className="flex justify-center pt-16">
+            <div className="w-6 h-6 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin"></div>
           </div>
         )}
 
-        {/* Activity Timeline */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h3 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-indigo-600" />
-            Activity Timeline
-          </h3>
+        {!loading && (
+          <>
+            {/* Good Standing */}
+            {!isFlagged && (
+              <div className="flex items-center gap-2 px-3 py-2 mb-4 rounded-md text-xs
+                              bg-green-400/10 border border-green-400/20 text-green-400">
+                <ShieldCheck size={14} />
+                Account in good standing
+              </div>
+            )}
 
-          {activities.length === 0 ? (
-            <div className="text-center py-10">
-              <ActivityIcon className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-400 text-sm">No activity yet.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {activities.map((a, index) => (
-                <div key={a._id || index} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-indigo-50 shrink-0">
-                      <ActivityIcon className="w-4 h-4 text-indigo-500" />
-                    </div>
-                    {index !== activities.length - 1 && (
-                      <div className="w-px flex-1 bg-gray-100 my-1"></div>
-                    )}
+            {/* Warning */}
+            {isFlagged && (
+              <div className={`p-4 mb-4 rounded-md border
+                ${isFake
+                  ? "bg-red-400/10 border-red-400/30"
+                  : "bg-yellow-400/10 border-yellow-400/30"}`}>
+
+                <div className="flex items-center gap-2 mb-2">
+                  {isFake
+                    ? <XCircle size={14} className="text-red-400" />
+                    : <AlertTriangle size={14} className="text-yellow-400" />}
+
+                  <span className={`text-sm font-medium
+                    ${isFake ? "text-red-400" : "text-yellow-400"}`}>
+                    {isFake ? "Account flagged" : "Unusual activity detected"}
+                  </span>
+
+                  <span className={`ml-auto text-2xl font-light
+                    ${isFake ? "text-red-400" : "text-yellow-400"}`}>
+                    {risk.score}
+                  </span>
+                </div>
+
+                {/* Score bar */}
+                <div className="h-0.75 bg-white/5 rounded overflow-hidden mb-2">
+                  <div
+                    className={`h-full rounded
+                      ${isFake ? "bg-red-400" : "bg-yellow-400"}`}
+                    style={{ width:`${Math.min(risk.score||0,100)}%` }}
+                  />
+                </div>
+
+                <p className={`text-xs mb-2
+                  ${isFake ? "text-red-400/70" : "text-yellow-400/70"}`}>
+                  {isFake
+                    ? "Multiple suspicious patterns detected. Reduce automated activity to restore your account."
+                    : "Your recent activity looks unusual. Slow down to keep your account in good standing."}
+                </p>
+
+                {risk.reasons?.filter(r=>r.startsWith("❌")||r.startsWith("⚠️")).map((r,i) => (
+                  <div key={i} className={`flex gap-1 text-[11px]
+                    ${r.startsWith("❌") ? "text-red-400/80" : "text-yellow-400/80"}`}>
+                    <span>{r.slice(0,2)}</span>
+                    <span>{r.slice(2).trim()}</span>
                   </div>
-                  <div className="flex-1 pb-3">
-                    <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                      <div className="flex justify-between items-center">
-                        <p className="text-sm font-medium text-gray-900">
-                          {getActivityTypeLabel(a.type)}
-                        </p>
-                        <span className="text-xs text-gray-400">
-                          {a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}
-                        </span>
-                      </div>
+                ))}
+              </div>
+            )}
+
+            {/* Timeline */}
+            <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-4">
+              <div className="text-xs text-[#44445a] font-medium mb-4 flex items-center gap-2">
+                <TrendingUp size={12} />
+                ACTIVITY TIMELINE
+              </div>
+
+              {activities.length === 0 && (
+                <p className="text-sm text-[#44445a] text-center py-5">
+                  No activity yet.
+                </p>
+              )}
+
+              {activities.map((a, i) => (
+                <div key={a._id||i} className="flex gap-3 relative">
+
+                  {/* Line */}
+                  {i < activities.length-1 && (
+                    <div className="absolute left-2.5 top-7 bottom-0 w-px bg-[#13131f]" />
+                  )}
+
+                  {/* Dot */}
+                  <div className="w-5 h-5 rounded-full bg-[#13131f] border border-[#1e1e30]
+                                  flex items-center justify-center mt-1 shrink-0">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 pb-4">
+                    <div className="text-sm text-[#c4c4d0] font-medium">
+                      {LABELS[a.type] || a.type}
+                    </div>
+                    <div className="text-xs text-[#44445a] mt-1 font-mono">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleString() : ""}
                     </div>
                   </div>
+
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </>
+        )}
+
       </div>
     </div>
   );
 }
-
-export default Activity;

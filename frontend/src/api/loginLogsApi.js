@@ -1,10 +1,10 @@
-import axiosInstance from "./axiosInstance";
+import API from "./axiosInstance";
 
 export const getMyLoginLogs = () =>
-  axiosInstance.get("/auth/login-logs");
+  API.get("/auth/login-logs");
 
 export const getAllLoginLogs = () =>
-  axiosInstance.get("/auth/login-logs/all"); // admin only
+  API.get("/admin/logs"); // admin only
 
 export default {
   getMyLoginLogs,

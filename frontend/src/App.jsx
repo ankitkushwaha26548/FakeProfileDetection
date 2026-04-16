@@ -16,6 +16,9 @@ import ProfilePage from "./userside/Profile";
 import FeedSystem from "./userside/SocialFeed";
 import PostSystem from "./userside/Post";
 import ActivityPage from "./userside/Activity";
+import QuickLookup from "./adminside/QuickLookup";
+
+
 
 function AdminRoute({ children }) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -59,6 +62,14 @@ const App = () => (
             <RiskScoring />
           </AdminRoute>
         }
+      />
+      <Route 
+        path="/admin/lookup" 
+        element={
+          <AdminRoute>
+            <QuickLookup />
+          </AdminRoute>
+        } 
       />
 
       {/* Auth Routes */}

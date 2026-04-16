@@ -20,14 +20,31 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'admin'],
         default: 'user'
     },
-    isVerified: {
-        type: Boolean,
-        default: false
-    },
     createdAt: {
         type: Date,
         default: Date.now
     }
+
+    //add blocking functionality 
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
+    blockedAt: {
+        type: Date,
+        default: null
+    }, 
+    blockedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    }
+    blockReason: {
+        type: String,
+        default: null
+    }
+    }, { 
+    timestamps: true
 });
 
 const User = mongoose.model('User', userSchema);

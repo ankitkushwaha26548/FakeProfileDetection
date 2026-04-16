@@ -100,13 +100,8 @@ export default function RegisterPage() {
         email: formData.email,
         password: formData.password,
       });
-      if (!data?.token) {
-        setError('Invalid response from server');
-        return;
-      }
-      localStorage.setItem('token', data.token);
-      if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/socialfeed', { replace: true });
+      // Registration successful, redirect to login
+      navigate('/login', { replace: true });
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Registration failed';
       setError(msg);

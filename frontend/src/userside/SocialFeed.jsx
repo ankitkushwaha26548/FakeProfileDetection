@@ -1,232 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Heart, MessageCircle, Share2, Bookmark, MoreVertical,
-  AlertTriangle, Send
-} from 'lucide-react';
-import Header from '../components/Header';
-import * as postApi from '../api/postApi';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { Heart, MessageCircle, Share2, Send, MoreHorizontal } from "lucide-react";
+import UserHeader from "../components/UserHeader";
+import * as postApi from "../api/postApi";
 
-const currentUserId = () => {
-  try {
-    const u = localStorage.getItem('user');
-    return u ? JSON.parse(u).id : null;
-  } catch { return null; }
-};
+const myId = () => { try { return JSON.parse(localStorage.getItem("user")||"{}").id; } catch { return null; } };
 
 export default function SocialFeed() {
-  const [posts, setPosts] = useState([]);
+  const [posts, setPosts]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showComments, setShowComments] = useState({});
-  const [commentText, setCommentText] = useState({});
-  const myId = currentUserId();
+  const [commentText, setCommentText]   = useState({});
+  const uid = myId();
 
-  const loadFeed = async () => {
+  const load = async () => {
     try {
       setLoading(true);
-      setError(null);
       const { data } = await postApi.getFeed();
-      setPosts(
-        (data || []).map((p) => ({
-          id: p._id,
-          user: {
-            _id: p.user?._id,
-            name: p.user?.name || 'Unknown',
-            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(p.user?.name || 'U')}&background=6366f1&color=fff`,
-          },
-          content: p.content,
-          timestamp: p.createdAt ? new Date(p.createdAt).toLocaleString() : '',
-          likes: Array.isArray(p.likes) ? p.likes.length : 0,
-          comments: Array.isArray(p.comments) ? p.comments.length : 0,
-          isLiked: Array.isArray(p.likes) && myId && p.likes.some((id) => String(id) === String(myId)),
-          commentsList: (p.comments || []).map((c) => ({
-            id: c._id,
-            user: c.user?.name || 'User',
-            text: c.text,
-            time: c.createdAt ? new Date(c.createdAt).toLocaleString() : '',
-          })),
-        }))
-      );
-    } catch (err) {
-      if (err.response?.status !== 429) {
-        setError(err.response?.data?.message || 'Failed to load feed');
-      }
-    } finally {
-      setLoading(false);
-    }
+      setPosts((data||[]).map(p => ({
+        id: p._id,
+        name: p.user?.name || "Unknown",
+        initials: (p.user?.name||"U")[0].toUpperCase(),
+        content: p.content,
+        time: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
+        likes: Array.isArray(p.likes) ? p.likes.length : 0,
+        comments: Array.isArray(p.comments) ? p.comments.length : 0,
+        isLiked: Array.isArray(p.likes) && uid && p.likes.some(id => String(id)===String(uid)),
+        commentsList: (p.comments||[]).map(c => ({
+          id: c._id, user: c.user?.name||"User", text: c.text,
+          time: c.createdAt ? new Date(c.createdAt).toLocaleString() : "",
+        })),
+      })));
+    } catch { setPosts([]); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => { loadFeed(); }, []);
+  useEffect(() => { load(); }, []);
 
-  const handleLike = async (postId) => {
-    try {
-      await postApi.likePost(postId);
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? { ...p, likes: p.isLiked ? p.likes - 1 : p.likes + 1, isLiked: !p.isLiked }
-            : p
-        )
-      );
-    } catch (_) {}
+  const handleLike = async (id) => {
+    await postApi.likePost(id);
+    setPosts(prev => prev.map(p =>
+      p.id === id ? { ...p, likes: p.isLiked ? p.likes-1 : p.likes+1, isLiked: !p.isLiked } : p
+    ));
+    setTimeout(load, 300);
   };
 
-  const handleAddComment = async (postId) => {
-    const text = commentText[postId]?.trim();
+  const handleComment = async (id) => {
+    const text = commentText[id]?.trim();
     if (!text) return;
-    try {
-      await postApi.commentPost(postId, { text });
-      setCommentText((c) => ({ ...c, [postId]: '' }));
-      loadFeed();
-    } catch (_) {}
+    await postApi.commentPost(id, { text });
+    setCommentText(c => ({ ...c, [id]:"" }));
+    setTimeout(load, 300);
   };
-
-  const toggleComments = (postId) => {
-    setShowComments((s) => ({ ...s, [postId]: !s[postId] }));
-  };
-
-  if (loading && posts.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading feed...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div className="min-h-screen bg-[#09090f]">
+      <UserHeader />
 
-      {!loading && posts.length === 0 && (
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No posts yet</h3>
-            <p className="text-gray-500 mb-6">Be the first to share something!</p>
-            <Link to="/post" className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
-              Create a Post
+      <div className="max-w-xl mx-auto px-4 py-6">
+
+        {/* Loader */}
+        {loading && (
+          <div className="flex justify-center pt-16">
+            <div className="w-6 h-6 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin"></div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && posts.length === 0 && (
+          <div className="text-center pt-20">
+            <Heart className="mx-auto mb-3 text-[#1e1e30]" size={40} />
+            <p className="text-sm font-medium text-[#8a8a9e]">No posts yet</p>
+            <p className="text-xs text-[#44445a] mb-5">Be the first to share something</p>
+            <Link to="/post" className="px-4 py-2 bg-indigo-400 text-white rounded-md text-xs font-medium">
+              Create a post
             </Link>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && (
-        <div className="max-w-2xl mx-auto px-4 py-4 mt-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm">{error}</p>
-          </div>
-        </div>
-      )}
+        <div className="flex flex-col gap-3">
+          {posts.map(post => (
+            <div key={post.id} className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl overflow-hidden">
 
-      {posts.length > 0 && (
-        <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-          {posts.map((post) => (
-            <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-200">
-
-              {/* Post Header */}
-              <div className="p-6 pb-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex gap-3">
-                    <img src={post.user.image} alt={post.user.name} className="w-11 h-11 rounded-full" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{post.user.name}</h3>
-                      <p className="text-xs text-gray-400">{post.timestamp}</p>
-                    </div>
-                  </div>
-                  <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+              {/* Header */}
+              <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+                <div className="w-9 h-9 rounded-full bg-[#13131f] flex items-center justify-center text-xs font-semibold text-indigo-400">
+                  {post.initials}
                 </div>
-                <p className="mt-4 text-gray-800 leading-relaxed">{post.content}</p>
+
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-[#e4e4ec]">{post.name}</div>
+                  <div className="text-[11px] text-[#44445a]">{post.time}</div>
+                </div>
+
+                <button className="text-[#44445a] p-1 rounded hover:bg-[#13131f]">
+                  <MoreHorizontal size={14} />
+                </button>
               </div>
 
-              {/* Post Stats */}
-              <div className="px-6 py-2 border-t border-gray-100 flex items-center justify-between text-sm text-gray-400">
+              {/* Content */}
+              <div className="px-4 pb-4">
+                <p className="text-sm text-[#c4c4d0] leading-relaxed">{post.content}</p>
+              </div>
+
+              {/* Stats */}
+              <div className="flex justify-between px-4 py-2 border-t border-[#13131f] text-xs text-[#44445a]">
                 <span>{post.likes} likes</span>
                 <span>{post.comments} comments</span>
               </div>
 
-              {/* Action Buttons */}
-              <div className="px-6 py-2 border-t border-gray-100 flex gap-1">
+              {/* Actions */}
+              <div className="flex border-t border-[#13131f] text-xs font-medium">
                 <button
                   onClick={() => handleLike(post.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-all text-sm font-medium ${
-                    post.isLiked ? 'text-red-600 bg-red-50 hover:bg-red-100' : 'text-gray-600 hover:bg-gray-100'
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 transition ${
+                    post.isLiked ? "text-red-400" : "text-[#44445a]"
                   }`}
                 >
-                  <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-red-600' : ''}`} />
+                  <Heart size={13} fill={post.isLiked ? "#f87171" : "none"} />
                   Like
                 </button>
+
                 <button
-                  onClick={() => toggleComments(post.id)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium"
+                  onClick={() => setShowComments(s => ({ ...s, [post.id]:!s[post.id] }))}
+                  className="flex-1 flex items-center justify-center gap-1 py-2 text-[#44445a]"
                 >
-                  <MessageCircle className="w-4 h-4" />
+                  <MessageCircle size={13} />
                   Comment
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors text-sm font-medium">
-                  <Share2 className="w-4 h-4" />
+
+                <button className="flex-1 flex items-center justify-center gap-1 py-2 text-[#44445a]">
+                  <Share2 size={13} />
                   Share
-                </button>
-                <button className="px-3 py-2 text-gray-400 hover:text-gray-600 transition-colors">
-                  <Bookmark className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Comments Section */}
+              {/* Comments */}
               {showComments[post.id] && (
-                <div className="px-6 pb-5 border-t border-gray-100">
-                  {post.commentsList?.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      {post.commentsList.map((c) => (
-                        <div key={c.id} className="flex gap-3">
-                          <img
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(c.user)}&background=6366f1&color=fff`}
-                            alt={c.user}
-                            className="w-8 h-8 rounded-full shrink-0"
-                          />
-                          <div className="flex-1 bg-gray-50 rounded-xl px-4 py-2">
-                            <p className="text-sm font-semibold text-gray-900">{c.user}</p>
-                            <p className="text-sm text-gray-700 mt-0.5">{c.text}</p>
-                            <p className="text-xs text-gray-400 mt-1">{c.time}</p>
-                          </div>
-                        </div>
-                      ))}
+                <div className="bg-[#09090f] border-t border-[#13131f] px-4 py-3">
+
+                  {post.commentsList.map(c => (
+                    <div key={c.id} className="flex gap-2 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-[#13131f] flex items-center justify-center text-[10px] font-semibold text-indigo-400">
+                        {c.user[0]?.toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 bg-[#0e0e1a] border border-[#1e1e30] rounded-md px-3 py-1">
+                        <div className="text-[11px] font-semibold text-[#8a8a9e]">{c.user}</div>
+                        <div className="text-xs text-[#c4c4d0]">{c.text}</div>
+                      </div>
                     </div>
-                  )}
-                  <div className="mt-4 flex gap-2">
+                  ))}
+
+                  <div className="flex gap-2 mt-2">
                     <input
-                      type="text"
-                      value={commentText[post.id] || ''}
-                      onChange={(e) => setCommentText((c) => ({ ...c, [post.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment(post.id)}
-                      placeholder="Write a comment..."
-                      className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                      value={commentText[post.id]||""}
+                      placeholder="Write a comment…"
+                      onChange={e => setCommentText(c => ({ ...c, [post.id]:e.target.value }))}
+                      onKeyDown={e => e.key==="Enter" && handleComment(post.id)}
+                      className="flex-1 bg-[#0e0e1a] border border-[#1e1e30] rounded-full px-4 py-2 text-xs text-[#e4e4ec] outline-none"
                     />
-                    <button onClick={() => handleAddComment(post.id)} className="text-indigo-600 hover:text-indigo-700 p-2">
-                      <Send className="w-4 h-4" />
+
+                    <button onClick={() => handleComment(post.id)} className="text-indigo-400 p-1">
+                      <Send size={14} />
                     </button>
                   </div>
                 </div>
               )}
+
             </div>
           ))}
+        </div>
 
-          <div className="text-center pt-2">
-            <button onClick={loadFeed} className="px-6 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 text-sm font-medium">
-              Refresh Feed
+        {/* Refresh */}
+        {posts.length > 0 && (
+          <div className="text-center pt-3">
+            <button
+              onClick={load}
+              className="px-4 py-2 bg-[#0e0e1a] border border-[#1e1e30] rounded-md text-xs text-[#44445a]"
+            >
+              Refresh
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

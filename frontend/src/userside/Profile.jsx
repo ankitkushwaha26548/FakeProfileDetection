@@ -1,332 +1,265 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  MapPin, Mail, Calendar, Activity, Smartphone,
-  Clock, AlertTriangle, ShieldCheck, TrendingUp, Edit3
-} from 'lucide-react';
-import Header from '../components/Header';
-import * as profileApi from '../api/profileApi';
-import * as detectionApi from '../api/detectionApi';
-import * as activityApi from '../api/activityApi';
-import * as loginLogsApi from '../api/loginLogsApi';
+import React, { useState, useEffect } from "react";
+import { Mail, MapPin, Edit3, TrendingUp, ShieldCheck, AlertTriangle, XCircle,
+         Smartphone, Clock, Activity } from "lucide-react";
+import { Link } from "react-router-dom";
+import UserHeader from "../components/UserHeader";
+import * as profileApi from "../api/profileApi";
+import * as detectionApi from "../api/detectionApi";
+import * as activityApi from "../api/activityApi";
+import * as loginLogsApi from "../api/loginLogsApi";
 
-export default function ProfileDashboard() {
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [saving, setSaving] = useState(false);
+export default function Profile() {
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [user, setUser]         = useState({ name:"", email:"", bio:"", location:"", image:"" });
+  const [stats, setStats]       = useState({ activities:0, devices:0, lastLogin:"N/A" });
+  const [risk, setRisk]         = useState(null);
+  const [recentActs, setRecentActs] = useState([]);
+  const [form, setForm]         = useState({ bio:"", location:"", phone:"", profileImage:"" });
 
-  const [userData, setUserData] = useState({
-    name: '', email: '', bio: '', location: '', profileImage: '',
-  });
-  const [stats, setStats] = useState({
-    activityCount: 0, deviceCount: 0, lastLogin: 'N/A',
-  });
-  const [riskLevel, setRiskLevel] = useState('GENUINE');
-  const [riskData, setRiskData] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [editForm, setEditForm] = useState({ bio: '', location: '', profileImage: '' });
+  const LABELS = { LOGIN:"Logged in", POST:"Created a post", LIKE_POST:"Liked a post",
+                   COMMENT:"Commented", REGISTER:"Account created" };
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const [profileRes, riskRes, activitiesRes, loginLogsRes] = await Promise.all([
-          profileApi.getProfile(),
-          detectionApi.getMyRisk().catch(() => ({ data: { level: 'GENUINE', score: 0 } })),
-          activityApi.getMyActivities().catch(() => ({ data: [] })),
-          loginLogsApi.getMyLoginLogs().catch(() => ({ data: [] })),
-        ]);
+    Promise.all([
+      profileApi.getProfile(),
+      detectionApi.getMyRisk().catch(() => ({ data:null })),
+      activityApi.getMyActivities().catch(() => ({ data:[] })),
+      loginLogsApi.getMyLoginLogs().catch(() => ({ data:[] })),
+    ]).then(([p, r, a, l]) => {
+      const profile = p.data;
+      const u = profile?.user || {};
+      const name = u.name || "User";
+      setUser({
+        name, email:u.email||"", bio:profile?.bio||"",
+        location:profile?.location||"",
+        image: profile?.profileImage ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=312e81&color=fff`,
+      });
+      setForm({ bio:profile?.bio||"", location:profile?.location||"", phone:profile?.phone||"", profileImage:profile?.profileImage||"" });
+      setRisk(r.data || null);
 
-        const profile = profileRes.data;
-        const user = profile?.user || {};
-        setUserData({
-          name: user.name || 'User',
-          email: user.email || '',
-          bio: profile?.bio || '',
-          location: profile?.location || '',
-          profileImage: profile?.profileImage ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&size=200&background=6366f1&color=fff`,
-        });
-        setEditForm({
-          bio: profile?.bio || '',
-          location: profile?.location || '',
-          profileImage: profile?.profileImage || '',
-        });
-
-        const loginLogs = Array.isArray(loginLogsRes.data) ? loginLogsRes.data : [];
-        const uniqueDevices = new Set(loginLogs.map(l => l.device || l.userAgent || 'Unknown'));
-        const lastLogin = loginLogs.length > 0 && loginLogs[0].createdAt
-          ? new Date(loginLogs[0].createdAt).toLocaleString()
-          : 'N/A';
-
-        setStats({
-          activityCount: Array.isArray(activitiesRes.data) ? activitiesRes.data.length : 0,
-          deviceCount: uniqueDevices.size,
-          lastLogin,
-        });
-
-        setRiskLevel(riskRes.data?.level || 'GENUINE');
-        setRiskData(riskRes.data || null);
-
-        const list = Array.isArray(activitiesRes.data) ? activitiesRes.data : [];
-        setActivities(list.slice(0, 8).map((a, i) => ({
-          id: a._id || i,
-          label: ({
-            LOGIN: 'Logged in',
-            POST: 'Created a post',
-            LIKE_POST: 'Liked a post',
-            COMMENT: 'Commented on a post',
-            REGISTER: 'Account created',
-          })[a.type] || a.type,
-          time: a.createdAt ? new Date(a.createdAt).toLocaleString() : '',
-        })));
-      } catch (err) {
-        if (err.response?.status !== 429) {
-          setError(err.response?.data?.message || 'Failed to load profile');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+      const logs = Array.isArray(l.data) ? l.data : [];
+      const devices = new Set(logs.map(x => x.device||x.userAgent||"unknown"));
+      setStats({
+        activities: Array.isArray(a.data) ? a.data.length : 0,
+        devices: devices.size,
+        lastLogin: logs[0]?.createdAt ? new Date(logs[0].createdAt).toLocaleString() : "N/A",
+      });
+      setRecentActs((Array.isArray(a.data)?a.data:[]).slice(0,6).map(x => ({
+        id:x._id, label:LABELS[x.type]||x.type,
+        time:x.createdAt ? new Date(x.createdAt).toLocaleString() : "",
+      })));
+    }).finally(() => setLoading(false));
   }, []);
 
-  const handleSaveProfile = async () => {
-    try {
-      setSaving(true);
-      await profileApi.updateProfile(editForm);
-      setUserData((prev) => ({
-        ...prev,
-        bio: editForm.bio,
-        location: editForm.location,
-        profileImage: editForm.profileImage || prev.profileImage,
-      }));
-      setShowEditModal(false);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const isFlagged = risk && risk.level !== "GENUINE";
+  const isFake    = risk?.level === "FAKE";
 
-  // Gentle own-account banner — only if flagged
-  const renderAccountBanner = () => {
-    if (riskLevel === 'GENUINE') {
-      return (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-50 border border-green-200">
-          <ShieldCheck className="w-4 h-4 text-green-600 shrink-0" />
-          <p className="text-xs text-green-700 font-medium">Account in good standing</p>
-        </div>
-      );
-    }
-    const isFake = riskLevel === 'FAKE';
-    return (
-      <div className={`rounded-xl border p-4 ${isFake ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'}`}>
-        <div className="flex items-start gap-2">
-          <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${isFake ? 'text-red-500' : 'text-yellow-500'}`} />
-          <div>
-            <p className={`text-xs font-semibold ${isFake ? 'text-red-800' : 'text-yellow-800'}`}>
-              {isFake ? 'Account flagged' : 'Unusual activity detected'}
-            </p>
-            <p className={`text-xs mt-0.5 ${isFake ? 'text-red-600' : 'text-yellow-600'}`}>
-              {isFake
-                ? 'Your account has been identified as suspicious. Reduce automated activity.'
-                : 'Your activity patterns look unusual. Slow down to stay in good standing.'}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const standingColor  = isFlagged ? (isFake ? "#f87171" : "#f59e0b") : "#4ade80";
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading profile...</p>
-          </div>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen bg-[#09090f]">
+      <UserHeader />
+      <div className="flex items-center justify-center h-75">
+        <div className="w-6 h-6 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin"></div>
       </div>
-    );
-  }
-
-  if (error && !userData.name) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-            <p className="text-red-600 text-sm mb-4">{error}</p>
-            <Link to="/socialfeed" className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
-              Back to Feed
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="min-h-screen bg-[#09090f]">
+      <UserHeader />
 
-          {/* LEFT COLUMN */}
-          <div className="space-y-4">
+      <div className="max-w-170 mx-auto px-4 py-6">
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns:"1fr 1fr 1fr",
+            gridTemplateAreas:`"profile profile standing" "stats stats stats" "activity activity activity"`
+          }}
+        >
 
-            {/* Profile card */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 text-center">
-              <img
-                src={userData.profileImage}
-                alt="Profile"
-                className="w-24 h-24 rounded-full border-4 border-indigo-100 mx-auto"
-              />
-              <h2 className="mt-3 text-lg font-semibold text-gray-900">{userData.name}</h2>
-              <p className="text-sm text-gray-400 mt-1 leading-snug">{userData.bio || 'No bio yet'}</p>
+          {/* Profile */}
+          <div
+            className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-5 flex items-center gap-4"
+            style={{ gridArea:"profile" }}
+          >
+            <img src={user.image} alt={user.name}
+              className="w-14 h-14 rounded-full border border-[#1e1e30]" />
 
-              <div className="mt-3 space-y-1.5">
-                {userData.email && (
-                  <p className="text-xs text-gray-500 flex items-center justify-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5" /> {userData.email}
-                  </p>
-                )}
-                {userData.location && (
-                  <p className="text-xs text-gray-500 flex items-center justify-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" /> {userData.location}
-                  </p>
-                )}
-              </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-base font-medium text-[#e4e4ec] mb-1">{user.name}</div>
 
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="mt-4 w-full bg-indigo-600 text-white py-2 rounded-xl text-sm hover:bg-indigo-700 transition-colors font-medium flex items-center justify-center gap-2"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                Edit Profile
-              </button>
-            </div>
+              {user.email && (
+                <div className="text-xs text-[#44445a] flex items-center gap-1 mb-1">
+                  <Mail size={11} />{user.email}
+                </div>
+              )}
 
-            {/* Account standing — gentle banner */}
-            {renderAccountBanner()}
+              {user.location && (
+                <div className="text-xs text-[#44445a] flex items-center gap-1">
+                  <MapPin size={11} />{user.location}
+                </div>
+              )}
 
-            {/* Quick stats */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
-              <StatRow icon={<Activity className="w-4 h-4 text-indigo-500" />} label="Total activities" value={stats.activityCount} />
-              <StatRow icon={<Smartphone className="w-4 h-4 text-purple-500" />} label="Devices used" value={stats.deviceCount} />
-              <StatRow icon={<Clock className="w-4 h-4 text-green-500" />} label="Last login" value={stats.lastLogin} small />
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN */}
-          <div className="lg:col-span-2 space-y-5">
-
-            {/* About */}
-            {userData.bio && (
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">About</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{userData.bio}</p>
-              </div>
-            )}
-
-            {/* Recent activity */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-indigo-500" />
-                  Recent Activity
-                </h3>
-                <Link to="/activity" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-                  View all
-                </Link>
-              </div>
-
-              {activities.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">No activity yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {activities.map((a, i) => (
-                    <div key={a.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                        <Activity className="w-3.5 h-3.5 text-indigo-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-800 font-medium truncate">{a.label}</p>
-                        <p className="text-xs text-gray-400">{a.time}</p>
-                      </div>
-                    </div>
-                  ))}
+              {user.bio && (
+                <div className="text-xs text-[#8a8a9e] mt-2 leading-relaxed">
+                  {user.bio}
                 </div>
               )}
             </div>
+
+            <button
+              onClick={() => setEditOpen(true)}
+              className="px-3 py-1.5 bg-[#13131f] border border-[#1e1e30] rounded-md text-xs text-[#8a8a9e] flex items-center gap-1"
+            >
+              <Edit3 size={11} />Edit
+            </button>
           </div>
+
+          {/* Standing */}
+          <div
+            className="rounded-xl p-4 flex flex-col justify-center gap-2 border"
+            style={{ gridArea:"standing", borderColor:standingColor+"30", backgroundColor:standingColor+"10" }}
+          >
+            <div className="flex items-center gap-2">
+              {isFake ? <XCircle size={14} style={{ color:standingColor }} />
+               : isFlagged ? <AlertTriangle size={14} style={{ color:standingColor }} />
+               : <ShieldCheck size={14} style={{ color:standingColor }} />}
+              <span className="text-xs font-semibold" style={{ color:standingColor }}>
+                {risk?.level || "GENUINE"}
+              </span>
+            </div>
+
+            {risk?.score !== undefined && (
+              <>
+                <div className="text-3xl font-light" style={{ color:standingColor }}>
+                  {risk.score}
+                </div>
+
+                <div className="h-1 bg-white/5 rounded overflow-hidden">
+                  <div className="h-full rounded" style={{ width:`${Math.min(risk.score,100)}%`, background:standingColor }} />
+                </div>
+
+                <div className="text-[10px]" style={{ color:standingColor+"80" }}>
+                  {isFlagged ? "Review your activity" : "Looks good"}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div
+            className="grid gap-2"
+            style={{ gridArea:"stats", gridTemplateColumns:"repeat(3,1fr)" }}
+          >
+            {[
+              { icon:Activity, label:"Activities", value:stats.activities },
+              { icon:Smartphone, label:"Devices", value:stats.devices },
+              { icon:Clock, label:"Last login", value:stats.lastLogin, small:true },
+            ].map(({ icon:Icon, label, value, small }) => (
+              <div key={label} className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-3 flex items-center gap-3">
+                <Icon size={14} className="text-indigo-400" />
+                <div>
+                  <div className={`${small ? "text-xs" : "text-xl"} text-[#e4e4ec] font-light`}>
+                    {value}
+                  </div>
+                  <div className="text-[10px] text-[#44445a] mt-1">{label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Activity */}
+          <div
+            className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-4"
+            style={{ gridArea:"activity" }}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-xs text-[#44445a] font-medium flex items-center gap-2">
+                <TrendingUp size={12} />
+                RECENT ACTIVITY
+              </div>
+              <Link to="/activity" className="text-xs text-indigo-400">
+                View all
+              </Link>
+            </div>
+
+            {recentActs.length === 0 && (
+              <p className="text-xs text-[#44445a]">No activity yet.</p>
+            )}
+
+            <div className="flex flex-col gap-1">
+              {recentActs.map((a, i) => (
+                <div key={a.id} className={`flex justify-between items-center py-2 ${i<recentActs.length-1 ? "border-b border-[#0d0d18]" : ""}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                    <span className="text-xs text-[#8a8a9e]">{a.label}</span>
+                  </div>
+                  <span className="text-[11px] text-[#44445a] font-mono">{a.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+      {/* Modal */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-6 w-full max-w-sm">
             <div className="flex justify-between items-center mb-5">
-              <h2 className="text-lg font-semibold text-gray-900">Edit Profile</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+              <span className="text-sm font-medium text-[#e4e4ec]">Edit Profile</span>
+              <button onClick={() => setEditOpen(false)} className="text-[#44445a] text-lg">✕</button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Bio</label>
-                <textarea
-                  value={editForm.bio}
-                  onChange={(e) => setEditForm(f => ({ ...f, bio: e.target.value }))}
-                  rows="3"
-                  className="w-full border border-gray-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none resize-none"
-                />
+
+            {[
+              { label:"Bio", key:"bio", multiline:true },
+              { label:"Location", key:"location" },
+              { label:"Phone", key:"phone" },
+              { label:"Profile image URL", key:"profileImage" },
+            ].map(f => (
+              <div key={f.key} className="mb-4">
+                <label className="block text-[10px] text-[#44445a] font-semibold mb-1 uppercase">
+                  {f.label}
+                </label>
+
+                {f.multiline ? (
+                  <textarea
+                    value={form[f.key]}
+                    rows={3}
+                    onChange={e => setForm(x => ({ ...x,[f.key]:e.target.value }))}
+                    className="w-full bg-[#09090f] border border-[#1e1e30] rounded-md px-3 py-2 text-sm text-[#e4e4ec] outline-none resize-none"
+                  />
+                ) : (
+                  <input
+                    value={form[f.key]}
+                    onChange={e => setForm(x => ({ ...x,[f.key]:e.target.value }))}
+                    className="w-full bg-[#09090f] border border-[#1e1e30] rounded-md px-3 py-2 text-sm text-[#e4e4ec] outline-none"
+                  />
+                )}
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Location</label>
-                <input
-                  value={editForm.location}
-                  onChange={(e) => setEditForm(f => ({ ...f, location: e.target.value }))}
-                  className="w-full border border-gray-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Profile Image URL</label>
-                <input
-                  value={editForm.profileImage}
-                  onChange={(e) => setEditForm(f => ({ ...f, profileImage: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full border border-gray-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowEditModal(false)} className="flex-1 border border-gray-200 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50">
+            ))}
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setEditOpen(false)} className="flex-1 py-2 border border-[#1e1e30] rounded-md text-sm text-[#8a8a9e]">
                 Cancel
               </button>
-              <button onClick={handleSaveProfile} disabled={saving} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Save'}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 py-2 bg-indigo-400 rounded-md text-sm text-white font-medium"
+              >
+                {saving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function StatRow({ icon, label, value, small }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-gray-500">
-        {icon}
-        <span className="text-xs">{label}</span>
-      </div>
-      <span className={`font-semibold text-gray-900 ${small ? 'text-xs' : 'text-sm'}`}>{value}</span>
     </div>
   );
 }

@@ -1,119 +1,129 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { Shield, Activity, Globe, LayoutDashboard, ArrowRight } from "lucide-react";
+import logo from "../assets/detect.png";
 
-function LandingPage() {
+const FEATURES = [
+  { icon:Shield,         label:"Risk scoring",     desc:"0–100 score per account. Genuine, Suspicious, or Fake.", to:"/admin/risk"          },
+  { icon:Activity,       label:"Behavior analysis",desc:"Detects rapid actions, bot timing, repetitive patterns.",  to:"/admin/behavior"      },
+  { icon:Globe,          label:"IP monitoring",    desc:"Flags location changes and suspicious login patterns.",    to:"/admin/ip-monitoring" },
+  { icon:LayoutDashboard,label:"Admin dashboard",  desc:"Full overview of users, risk levels, and activity logs.", to:"/admin/dashboard"     },
+];
+
+const STEPS = [
+  { n:"01", title:"Users join & act",    desc:"Register, post, like, comment on the simulated platform." },
+  { n:"02", title:"System monitors",     desc:"Every action is silently logged and analyzed for patterns." },
+  { n:"03", title:"Admin reviews",       desc:"Dashboard surfaces risk scores and flagged accounts." },
+];
+
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-950 via-slate-900 to-black text-white">
+    <div style={{ minHeight:"100vh", background:"#09090f", color:"#e4e4ec",
+                  fontFamily:"'Inter',system-ui,sans-serif", fontSize:14 }}>
+    
 
-      {/* Hero */}
-      <section className="text-center px-6 py-24">
-        
-        <h1 className="text-3xl md:text-5xl font-extrabold mb-4 bg-linear-to-r from-white to-indigo-300 bg-clip-text text-transparent">
+      {/* Nav */}
+      <nav style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+                    padding:"16px 40px", borderBottom:"1px solid #1e1e30" }}>
+         {/* Logo */}
+         <Link to="/" className="flex items-center gap-2">
+          <img src={logo} alt="LeafLine Logo" className="h-9 w-9 object-cover" />
+          <span style={{ fontSize:15, fontWeight:600, color:"#818cf8", letterSpacing:"-.2px" }}>
           FakeDetect
-        </h1>
-        <p className="text-xl text-indigo-400 font-semibold mb-4">
-          Fake Profile & Behavior Detection System
-        </p>
-        <p className="max-w-2xl mx-auto text-gray-400 mb-10 leading-relaxed">
-          A simulated social media platform that analyzes user behavior,
-          activity patterns, and risk factors to identify suspicious or fake
-          accounts using intelligent monitoring techniques.
-        </p>
-        <div className="flex justify-center gap-4 flex-wrap">
-          <Link to="/login" className="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-semibold transition-colors">
+        </span>
+        </Link>
+
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <Link to="/login" style={{ padding:"6px 14px", background:"none",
+                                      border:"1px solid #1e1e30", borderRadius:6,
+                                      fontSize:13, color:"#8a8a9e", textDecoration:"none",
+                                      transition:"all .15s" }}>
             Login
           </Link>
-          <Link to="/register" className="px-8 py-3 border border-indigo-500 hover:bg-indigo-600/20 rounded-lg font-semibold transition-colors">
+          <Link to="/register" style={{ padding:"6px 14px", background:"#818cf8",
+                                         border:"none", borderRadius:6,
+                                         fontSize:13, color:"#fff", textDecoration:"none",
+                                         fontWeight:500 }}>
             Register
           </Link>
-          <Link to="/admin/dashboard" className="px-8 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold transition-colors text-gray-200">
-            Admin Panel
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section style={{ maxWidth:640, margin:"0 auto", padding:"96px 24px 80px", textAlign:"center" }}>
+        
+        <h1 style={{ fontSize:48, fontWeight:300, letterSpacing:"-1.5px", lineHeight:1.15,
+                     color:"#e4e4ec", marginBottom:16 }}>
+          Fake Profile<br />
+          <span style={{ color:"#818cf8" }}>Detection System</span>
+        </h1>
+        <p style={{ fontSize:16, color:"#44445a", lineHeight:1.7, marginBottom:36, maxWidth:480, margin:"0 auto 36px" }}>
+          A simulated social media platform that analyzes user behavior,
+          activity patterns, and risk factors to identify suspicious and
+          fake accounts.
+        </p>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, flexWrap:"wrap" }}>
+          <Link to="/register" style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 20px",
+                                         background:"#818cf8", borderRadius:8, fontSize:13,
+                                         fontWeight:500, color:"#fff", textDecoration:"none" }}>
+            Get started <ArrowRight size={13} />
+          </Link>
+          <Link to="/admin/dashboard" style={{ padding:"10px 20px", background:"none",
+                                               border:"1px solid #1e1e30", borderRadius:8,
+                                               fontSize:13, color:"#8a8a9e", textDecoration:"none" }}>
+            Admin panel
           </Link>
         </div>
       </section>
 
-      {/* How it works — 3 simple steps */}
-      <section className="px-6 py-12 border-t border-slate-800">
-        <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8 text-center">
-          <StepCard number="01" title="User joins & acts" desc="Users register, post, like, comment on the simulated platform." />
-          <StepCard number="02" title="System monitors" desc="Every login, post, and IP change is silently logged and analyzed." />
-          <StepCard number="03" title="Admin reviews" desc="Admin dashboard surfaces risk scores, flagged accounts, and behavior reports." />
+      {/* How it works */}
+      <section style={{ maxWidth:800, margin:"0 auto", padding:"0 24px 80px" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:1,
+                      border:"1px solid #1e1e30", borderRadius:10, overflow:"hidden" }}>
+          {STEPS.map((s, i) => (
+            <div key={i} style={{ padding:"24px 20px", background:"#0e0e1a",
+                                   borderRight: i<2 ? "1px solid #1e1e30" : "none" }}>
+              <div style={{ fontSize:28, fontWeight:200, color:"#1e1e30", marginBottom:10,
+                            fontVariantNumeric:"tabular-nums", letterSpacing:"-1px" }}>{s.n}</div>
+              <div style={{ fontSize:13, fontWeight:500, color:"#e4e4ec", marginBottom:6 }}>{s.title}</div>
+              <div style={{ fontSize:12, color:"#44445a", lineHeight:1.6 }}>{s.desc}</div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Features — all link to admin */}
-      <section className="px-6 py-16 bg-slate-900/60">
-        <h2 className="text-3xl font-bold text-center mb-3">Detection Capabilities</h2>
-        <p className="text-center text-gray-500 text-sm mb-10">All features are accessible from the Admin Panel</p>
-
-        <div className="grid md:grid-cols-4 gap-5 max-w-5xl mx-auto">
-          <FeatureCard
-            icon="🛡️"
-            title="Risk Scoring"
-            desc="Each account is scored 0–100 and classified as Genuine, Suspicious, or Fake."
-            to="/admin/risk"
-          />
-          <FeatureCard
-            icon="📊"
-            title="Behavior Analysis"
-            desc="Detects rapid actions, repetitive patterns, and bot-like timing."
-            to="/admin/behavior"
-          />
-          <FeatureCard
-            icon="🌐"
-            title="IP Monitoring"
-            desc="Flags frequent IP changes and suspicious login location patterns."
-            to="/admin/ip-monitoring"
-          />
-          <FeatureCard
-            icon="⚙️"
-            title="Admin Dashboard"
-            desc="Full overview of all users, risk levels, and detection reports."
-            to="/admin/dashboard"
-          />
+      {/* Features */}
+      <section style={{ maxWidth:800, margin:"0 auto", padding:"0 24px 80px" }}>
+        <div style={{ fontSize:10, fontWeight:600, letterSpacing:".12em", textTransform:"uppercase",
+                      color:"#44445a", marginBottom:20, textAlign:"center" }}>
+          Detection capabilities — all in admin panel
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10 }}>
+          {FEATURES.map(({ icon:Icon, label, desc, to }) => (
+            <Link key={to} to={to} style={{ display:"flex", gap:14, padding:"16px 18px",
+                                             background:"#0e0e1a", border:"1px solid #1e1e30",
+                                             borderRadius:10, textDecoration:"none",
+                                             transition:"border-color .15s", cursor:"pointer" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor="#2e2e46"}
+              onMouseLeave={e => e.currentTarget.style.borderColor="#1e1e30"}>
+              <Icon size={16} style={{ color:"#818cf8", flexShrink:0, marginTop:2 }} />
+              <div>
+                <div style={{ fontSize:13, fontWeight:500, color:"#e4e4ec", marginBottom:4 }}>{label}</div>
+                <div style={{ fontSize:12, color:"#44445a", lineHeight:1.55 }}>{desc}</div>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 
-      {/* Purpose */}
-      <section className="text-center px-6 py-20">
-        <h2 className="text-3xl font-bold mb-6">Why This System Exists</h2>
-        <p className="max-w-3xl mx-auto text-gray-400 leading-relaxed">
-          Fake profiles, bots, and malicious accounts pose serious threats to
-          online platforms. This system demonstrates how intelligent monitoring
-          of user behavior, profile completeness, and activity patterns can
-          identify suspicious accounts before they cause harm — all without
-          exposing the detection mechanics to end users.
-        </p>
-      </section>
-
-      <footer className="text-center py-6 border-t border-slate-800 text-gray-600 text-sm">
-        © 2026 FakeDetect — MCA Major Project · University of Allahabad
+      {/* Footer */}
+      <footer style={{ borderTop:"1px solid #1e1e30", padding:"20px 40px",
+                       display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8 }}>
+        <span style={{ fontSize:12, color:"#2a2a3e" }}>
+          © 2026 FakeDetect
+        </span>
+        <span style={{ fontSize:12, color:"#2a2a3e" }}>Ankit Kushwaha · U2449004</span>
       </footer>
     </div>
   );
 }
-
-function StepCard({ number, title, desc }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-4xl font-black text-indigo-900 mb-2">{number}</span>
-      <h3 className="text-base font-bold text-white mb-1">{title}</h3>
-      <p className="text-sm text-gray-500">{desc}</p>
-    </div>
-  );
-}
-
-function FeatureCard({ icon, title, desc, to }) {
-  return (
-    <Link to={to} className="block h-full group">
-      <div className="h-full flex flex-col p-5 rounded-xl border border-slate-700 hover:border-indigo-500 hover:bg-slate-800/80 transition-all duration-200 cursor-pointer">
-        <span className="text-2xl mb-3">{icon}</span>
-        <h3 className="text-sm font-bold mb-1.5 text-indigo-400 group-hover:text-indigo-300">{title}</h3>
-        <p className="text-gray-400 text-xs leading-relaxed grow">{desc}</p>
-        <p className="text-indigo-500 text-xs mt-3 font-medium group-hover:text-indigo-400">View in admin →</p>
-      </div>
-    </Link>
-  );
-}
-
-export default LandingPage;

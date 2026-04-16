@@ -1,172 +1,182 @@
-// fakeDetection.js
-
 import Profile from '../models/Profile.js';
 import Activity from '../models/Activity.js';
 import RiskScore from '../models/RiskScore.js';
 import LoginLog from '../models/LoginLog.js';
+import User from '../models/User.js';
 import riskCalculator from './riskCalculator.js';
+import profileCompleteness from './profileCompleteness.js';
 
 const runDetection = async (userId) => {
   try {
-    // Optimized: Fetch all data in parallel to reduce DB calls
-    const [profile, totalActivities, logins, recentActivities] = await Promise.all([
-      Profile.findOne({ user: userId }),
-      Activity.countDocuments({ user: userId }),
-      LoginLog.find({ user: userId }).sort({ createdAt: -1 }).limit(10),
-      Activity.find({ user: userId }).sort({ createdAt: -1 }).limit(50)
-    ]);
-
     let score = 0;
     let reasons = [];
 
-    // 1. ACCOUNT AGE (grace period for new users)
-    const accountAgeDays = (Date.now() - new Date(profile?.createdAt || Date.now())) / (1000 * 60 * 60 * 24);
+    const [profile, totalActivities, logins, recentActivities, user] = await Promise.all([
+      Profile.findOne({ user: userId }),
+      Activity.countDocuments({ user: userId }),
+      LoginLog.find({ user: userId }).sort({ createdAt: -1 }).limit(10),
+      Activity.find({ user: userId }).sort({ createdAt: -1 }).limit(50),
+      User.findById(userId)
+    ]);
+
+    // 1. ACCOUNT AGE
+    const accountAgeDays =
+      (Date.now() - new Date(user?.createdAt || Date.now())) /
+      (1000 * 60 * 60 * 24);
+
     const isNewUser = accountAgeDays < 3;
 
-    // 2. PROFILE COMPLETENESS (skip for new users)
-    if (!isNewUser) {
-      if (!profile || (profile.profileCompleteness || 0) < 50) {
-        score += 8; // Balanced weight
-        reasons.push("❌ Incomplete profile");
-      } else {
-        reasons.push("✅ Complete profile");
-      }
+    
+    // 2. PROFILE
+    const completeness = profileCompleteness(profile);
+    if (!profile || completeness < 50) {
+      score += 15;
+      reasons.push("Incomplete profile");
+    } else {
+      reasons.push("Complete profile");
     }
 
-    // 3. ACTIVITY COUNT
-    if (totalActivities < 3) {
-      score += 4; // Balanced weight
-      reasons.push("❌ Very low activity");
-    } else if (totalActivities <= 50) {
-      reasons.push("✅ Normal activity level");
-    } else if (!isNewUser) {
-      score += 4; // Balanced weight
-      reasons.push("❌ Unusual high activity");
+    // 3. ACTIVITY
+    if (totalActivities === 0) {
+      score += 15;
+      reasons.push("No activity");
+    } else if (totalActivities > 50 && isNewUser) {
+      score += 15;
+      reasons.push("New account high activity");
+    } else if (totalActivities > 60) {
+      score += 10;
+      reasons.push("Very high activity");
+    } else {
+      reasons.push("Normal activity");
     }
 
-    // 4. LOGIN FREQUENCY (skip for new users)
+    // 4. LOGIN
     if (logins.length >= 5 && !isNewUser) {
-      const timeDiff = new Date(logins[0].createdAt) - new Date(logins[4].createdAt);
-      if (timeDiff < 10 * 60 * 1000) {
-        score += 8; // Balanced weight
-        reasons.push("❌ High login frequency (bot-like)");
+      const diff =
+        new Date(logins[0].createdAt) -
+        new Date(logins[4].createdAt);
+
+      if (diff < 10 * 60 * 1000) {
+        score += 10;
+        reasons.push("Frequent login");
       } else {
-        reasons.push("✅ Normal login frequency");
+        reasons.push("Normal login");
       }
     }
 
-    // 5. IP PATTERN
-    const recentIPs = logins.map(log => log.ip);
-    const uniqueIPs = [...new Set(recentIPs)];
-
-    if (uniqueIPs.length >= 3 && !isNewUser) {
-      score += 8; // Balanced weight
-      reasons.push("❌ Frequent IP changes");
-    } else if (uniqueIPs.length > 0) {
-      reasons.push("✅ Consistent IP usage");
+    //new user + login
+    if (isNewUser && logins.length >= 5) {
+    score += 10;
+    reasons.push("New account with multiple logins");
     }
 
-    // 6. NEW ACCOUNT HIGH ACTIVITY
-    if (accountAgeDays < 2 && totalActivities > 20) {
-      score += 8; // Balanced weight
-      reasons.push("❌ New account with high activity");
+    // 5. IP
+    const uniqueIPs = [...new Set(logins.map(l => l.ip))];
+
+    if (uniqueIPs.length >= 3) {
+      score += 15;
+      reasons.push("Multiple IP changes");
+    } else {
+      reasons.push("Stable IP");
     }
 
-    if (accountAgeDays >= 7) {
-      reasons.push("✅ Established account");
+    
+    // IP RISK + Login
+    if (logins.length >= 5 && uniqueIPs.length >= 3) {
+    score += 15;
+    reasons.push("Multiple logins from different IPs");
     }
 
-    // 7. BEHAVIOR ANALYSIS (skip for new users)
+    // 6. BEHAVIOR
     let behaviorRisk = "LOW";
 
     if (recentActivities.length >= 10 && !isNewUser) {
-      let rapidActions = 0;
+      let rapid = 0;
+
       for (let i = 0; i < recentActivities.length - 1; i++) {
-        const diff = new Date(recentActivities[i].createdAt) - new Date(recentActivities[i + 1].createdAt);
-        if (diff < 2000) rapidActions++;
+        const diff =
+          new Date(recentActivities[i].createdAt) -
+          new Date(recentActivities[i + 1].createdAt);
+
+        if (diff < 5000) rapid++;
       }
 
-      if (rapidActions >= 10) {
-        score += 10; // Balanced weight
-        behaviorRisk = "HIGH";
-        reasons.push("❌ Bot-like rapid actions");
-      } else if (rapidActions >= 5) {
-        score += 5; // Balanced weight
-        behaviorRisk = "MEDIUM";
-        reasons.push("⚠️ Some rapid actions");
-      } else {
-        reasons.push("✅ Natural timing");
-      }
-
-      // Repetitive pattern
-      const types = recentActivities.map(a => a.type);
-      const sameActions = types.filter(t => t === types[0]).length;
-      if (sameActions >= 15) {
-        score += 8; // Balanced weight
-        behaviorRisk = "HIGH";
-        reasons.push("❌ Repetitive actions");
-      } else {
-        reasons.push("✅ Varied actions");
-      }
+      if (rapid >= 10) behaviorRisk = "HIGH";
+      else if (rapid >= 5) behaviorRisk = "MEDIUM";
     }
 
-    // 8. Prepare inputs for riskCalculator
-    const activityScore = Math.min((totalActivities / 100) * 100, 100);
-    const ipRisk = uniqueIPs.length >= 3 ? "HIGH" : (uniqueIPs.length === 2 ? "MEDIUM" : "LOW");
+    // 7. DEVICE
     const deviceRisk = uniqueIPs.length >= 5 ? "HIGH" : "LOW";
 
+    // 8. ADVANCED ENGINE
     const calc = riskCalculator({
-      activityScore,
-      ipRisk,
       behaviorRisk,
       deviceRisk,
       accountAgeDays
     });
 
-    // 9. FINAL SCORE (weighted average)
-    const finalScore = Math.round((score + calc.score) / 2);
+    score += calc.score;
+    reasons = [...new Set([...reasons, ...calc.reasons])];
 
-    // 10. NEW USER CAP: Prevent FAKE for new users
-    const cappedScore = isNewUser ? Math.min(finalScore, 39) : finalScore;
+    if (behaviorRisk === "HIGH" && uniqueIPs.length >= 3) {
+      score += 20;
+      reasons.push("Bot + IP risk combo");
+    }
 
-    // 11. FINAL LEVEL with updated thresholds
+    if (totalActivities === 0 && accountAgeDays > 10) {
+      score += 15;
+      reasons.push("Inactive old account");
+    }
+
+    // 9. CONFIDENCE
+    const confidence = Math.min(score, 100);
+
+    // 10. FINAL LEVEL
     let finalLevel = "GENUINE";
-    if (cappedScore >= 40) finalLevel = "FAKE";
-    else if (cappedScore >= 25) finalLevel = "SUSPICIOUS";
 
-    // 12. OVERRIDE RULE: Smart detection for high-risk combos
-    if (behaviorRisk === "HIGH" && ipRisk === "HIGH") {
-      finalLevel = "FAKE";
-      reasons.push("🚨 Override: Bot + High-risk IP");
-    }
+    if (score >= 60) finalLevel = "FAKE";
+    else if (score >= 30) finalLevel = "SUSPICIOUS";
 
-    // 13. MERGE REASONS (deduplicate)
-    const finalReasons = [...new Set([...reasons, ...calc.reasons])];
+    console.log({
+      userId,score,behaviorRisk,deviceRisk,totalActivities,uniqueIPs: uniqueIPs.length,accountAgeDays,
+      finalLevel,reasons
+    });
 
-    // 14. SAVE/UPDATE RISK SCORE
-    let risk = await RiskScore.findOne({ user: userId });
-    if (!risk) {
-      risk = await RiskScore.create({
-        user: userId,
-        score: cappedScore,
-        level: finalLevel,
-        reasons: finalReasons,
-        accountAgeDays
-      });
-    } else {
-      risk.score = cappedScore;
-      risk.level = finalLevel;
-      risk.reasons = finalReasons;
-      risk.accountAgeDays = accountAgeDays;
-      risk.lastUpdated = new Date();
-      await risk.save();
-    }
-
-    return risk;
+    return await saveResult(
+      userId,
+      score,
+      finalLevel,
+      reasons,
+      accountAgeDays,
+      confidence
+    );
 
   } catch (error) {
     console.error("Detection error:", error.message);
     return null;
+  }
+};
+
+const saveResult = async (userId, score, level, reasons, accountAgeDays, confidence) => {
+  let risk = await RiskScore.findOne({ user: userId });
+
+  if (!risk) {
+    return await RiskScore.create({
+      user: userId,
+      score,
+      level,
+      reasons,
+      accountAgeDays,
+      confidence
+    });
+  } else {
+    risk.score = score;
+    risk.level = level;
+    risk.reasons = reasons;
+    risk.accountAgeDays = accountAgeDays;
+    risk.confidence = confidence;
+    risk.lastUpdated = new Date();
+    return await risk.save();
   }
 };
 

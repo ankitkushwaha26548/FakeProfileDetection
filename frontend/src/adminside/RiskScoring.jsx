@@ -1,232 +1,192 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  Shield, AlertTriangle, CheckCircle, XCircle,
-  ArrowLeft, TrendingUp, ChevronDown, ChevronUp
-} from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import AdminLayout from "../components/AdminLayout";
 import * as adminApi from "../api/adminApi";
+
+/* Score Bar */
+const ScoreBar = ({ score, level }) => {
+  const col =
+    level === "FAKE" ? "bg-red-400 text-red-400"
+    : level === "SUSPICIOUS" ? "bg-yellow-400 text-yellow-400"
+    : level === "GENUINE" ? "bg-green-400 text-green-400"
+    : score >= 60 ? "bg-red-400 text-red-400"
+    : score >= 30 ? "bg-yellow-400 text-yellow-400"
+    : "bg-green-400 text-green-400";
+
+  return (
+    <div className="flex items-center gap-2 flex-1">
+      <div className="flex-1 h-0.75 bg-[#1e1e30] rounded overflow-hidden">
+        <div
+          className={`h-full ${col.split(" ")[0]} transition-all duration-500`}
+          style={{ width: `${Math.min(score || 0, 100)}%` }}
+        />
+      </div>
+      <span className={`text-xs font-medium w-6 text-right ${col.split(" ")[1]}`}>
+        {score ?? 0}
+      </span>
+    </div>
+  );
+};
+
+/* Risk Badge */
+const RiskBadge = ({ level }) => {
+  const cfg = {
+    GENUINE: "text-green-400 bg-green-400/10 border-green-400/20",
+    SUSPICIOUS: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
+    FAKE: "text-red-400 bg-red-400/10 border-red-400/20",
+  }[level] || "text-gray-400 border-[#1e1e30]";
+
+  return (
+    <span className={`text-[10px] font-bold tracking-wide px-2 py-0.5 rounded border ${cfg}`}>
+      {level}
+    </span>
+  );
+};
 
 export default function RiskScoring() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
-  const [sortBy, setSortBy] = useState("score_desc");
   const [filter, setFilter] = useState("ALL");
+  const [sort, setSort] = useState("score_desc");
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await adminApi.getUsersWithRisk();
-        setUsers(res.data || []);
-      } catch (err) {
-        console.error(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    adminApi.getUsersWithRisk()
+      .then(r => setUsers(r.data || []))
+      .finally(() => setLoading(false));
   }, []);
 
   const sorted = [...users]
-    .filter((u) => filter === "ALL" || u.level === filter)
+    .filter(u => filter === "ALL" || u.level === filter)
     .sort((a, b) => {
-      if (sortBy === "score_desc") return (b.score || 0) - (a.score || 0);
-      if (sortBy === "score_asc") return (a.score || 0) - (b.score || 0);
-      if (sortBy === "name") return (a.user?.name || "").localeCompare(b.user?.name || "");
-      return 0;
+      if (sort === "score_desc") return (b.score || 0) - (a.score || 0);
+      if (sort === "score_asc") return (a.score || 0) - (b.score || 0);
+      return (a.user?.name || "").localeCompare(b.user?.name || "");
     });
-
-  const scoreBarColor = (level) => {
-    if (level === "FAKE") return "bg-red-500";
-    if (level === "SUSPICIOUS") return "bg-yellow-500";
-    return "bg-green-500";
-  };
-
-  const levelBadge = (level) => {
-    if (level === "FAKE") return "bg-red-900/50 text-red-300 border border-red-700/60";
-    if (level === "SUSPICIOUS") return "bg-yellow-900/50 text-yellow-300 border border-yellow-700/60";
-    return "bg-green-900/50 text-green-300 border border-green-700/60";
-  };
-
-  const levelIcon = (level) => {
-    if (level === "FAKE") return <XCircle className="w-3.5 h-3.5" />;
-    if (level === "SUSPICIOUS") return <AlertTriangle className="w-3.5 h-3.5" />;
-    return <CheckCircle className="w-3.5 h-3.5" />;
-  };
-
-  // Score thresholds explanation
-  const thresholds = [
-    { range: "0 – 49", level: "GENUINE", color: "text-green-400", desc: "Normal activity, no suspicious patterns detected." },
-    { range: "50 – 69", level: "SUSPICIOUS", color: "text-yellow-400", desc: "Some unusual behavior. May indicate bot activity or account misuse." },
-    { range: "70 – 100", level: "FAKE", color: "text-red-400", desc: "High-risk account. Multiple detection criteria triggered." },
-  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
-      </div>
+      <AdminLayout title="Risk Scoring">
+        <div className="flex justify-center items-center h-75">
+          <div className="w-7 h-7 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin" />
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <div className="border-b border-gray-800 px-6 py-4 flex items-center gap-4">
-        <Link to="/admin/dashboard" className="text-gray-500 hover:text-white transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <Shield className="w-4 h-4 text-indigo-400" />
-        <span className="text-sm text-gray-400">Admin</span>
-        <span className="text-gray-700">/</span>
-        <span className="text-white font-semibold text-sm">Risk Scoring</span>
-      </div>
+    <AdminLayout title="Risk Scoring">
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
-
-        {/* Threshold legend */}
-        <div className="grid md:grid-cols-3 gap-4">
-          {thresholds.map((t) => (
-            <div key={t.level} className="bg-gray-900 rounded-xl border border-gray-800 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-sm font-bold ${t.color}`}>{t.level}</span>
-                <span className="text-xs text-gray-600 font-mono">{t.range}</span>
-              </div>
-              <p className="text-xs text-gray-500 leading-relaxed">{t.desc}</p>
+      {/* Legend */}
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[
+          { range:"0 – 29", level:"GENUINE", col:"text-green-400", desc:"Normal activity." },
+          { range:"30 – 59", level:"SUSPICIOUS", col:"text-yellow-400", desc:"Unusual patterns." },
+          { range:"60 – 100", level:"FAKE", col:"text-red-400", desc:"Multiple triggers." },
+        ].map(t => (
+          <div key={t.level} className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-3">
+            <div className="flex justify-between mb-1">
+              <span className={`text-xs font-semibold ${t.col}`}>{t.level}</span>
+              <span className="text-[10px] text-gray-500 font-mono">{t.range}</span>
             </div>
-          ))}
-        </div>
-
-        {/* Controls */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex gap-2">
-            {["ALL", "GENUINE", "SUSPICIOUS", "FAKE"].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  filter === f ? "bg-indigo-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+            <p className="text-[11px] text-gray-500">{t.desc}</p>
           </div>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="score_desc">Score: High to Low</option>
-            <option value="score_asc">Score: Low to High</option>
-            <option value="name">Name: A–Z</option>
-          </select>
-        </div>
+        ))}
+      </div>
 
-        {/* Risk score cards */}
-        <div className="space-y-3">
-          {sorted.length === 0 && (
-            <div className="bg-gray-900 rounded-2xl border border-gray-800 p-10 text-center">
-              <p className="text-gray-600 text-sm">No users found.</p>
-            </div>
-          )}
-          {sorted.map((u) => (
-            <div key={u._id} className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-
-              {/* Row */}
-              <div
-                className="px-6 py-4 flex items-center gap-4 cursor-pointer hover:bg-gray-800/40 transition-colors"
-                onClick={() => setExpanded(expanded === u._id ? null : u._id)}
-              >
-                <img
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.user?.name || 'U')}&background=312e81&color=fff`}
-                  alt=""
-                  className="w-9 h-9 rounded-full shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white">{u.user?.name || "Unknown"}</p>
-                  <p className="text-xs text-gray-600">{u.user?.email || ""}</p>
-                </div>
-
-                {/* Score bar */}
-                <div className="hidden md:flex items-center gap-3 w-48">
-                  <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${scoreBarColor(u.level)}`}
-                      style={{ width: `${Math.min(u.score || 0, 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-white w-8 text-right">{u.score ?? 0}</span>
-                </div>
-
-                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold ${levelBadge(u.level)}`}>
-                  {levelIcon(u.level)}
-                  {u.level}
-                </span>
-
-                {expanded === u._id
-                  ? <ChevronUp className="w-4 h-4 text-gray-500 shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
-                }
-              </div>
-
-              {/* Expanded: detection reasons */}
-              {expanded === u._id && (
-                <div className="px-6 pb-5 border-t border-gray-800/60">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mt-4 mb-3">
-                    Detection breakdown
-                  </p>
-
-                  {/* Mobile score bar */}
-                  <div className="md:hidden mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${scoreBarColor(u.level)}`}
-                          style={{ width: `${Math.min(u.score || 0, 100)}%` }}
-                        />
-                      </div>
-                      <span className="text-sm font-bold text-white">{u.score ?? 0} / 100</span>
-                    </div>
-                  </div>
-
-                  {u.reasons && u.reasons.length > 0 ? (
-                    <div className="grid md:grid-cols-2 gap-2">
-                      {u.reasons.map((r, i) => {
-                        const isPass = r.startsWith("✅");
-                        const isFail = r.startsWith("❌");
-                        const isWarn = r.startsWith("⚠️");
-                        return (
-                          <div
-                            key={i}
-                            className={`flex items-start gap-2 px-3 py-2 rounded-lg text-xs ${
-                              isFail ? "bg-red-950/30 text-red-300" :
-                              isWarn ? "bg-yellow-950/30 text-yellow-300" :
-                              "bg-gray-800/60 text-gray-400"
-                            }`}
-                          >
-                            <span className="shrink-0 mt-0.5">{r.slice(0, 2)}</span>
-                            <span>{r.slice(2).trim()}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-gray-600 text-xs">No detection reasons recorded yet.</p>
-                  )}
-
-                  {u.accountAgeDays !== undefined && (
-                    <p className="text-xs text-gray-600 mt-3">
-                      Account age: {Math.round(u.accountAgeDays)} day{Math.round(u.accountAgeDays) !== 1 ? "s" : ""}
-                      {u.lastUpdated && ` · Last scored: ${new Date(u.lastUpdated).toLocaleString()}`}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+      {/* Controls */}
+      <div className="flex justify-between flex-wrap gap-2 mb-4">
+        <div className="flex gap-1">
+          {["ALL","GENUINE","SUSPICIOUS","FAKE"].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-2 py-1 text-xs font-semibold rounded border transition
+              ${filter===f
+                ? "bg-indigo-400 text-white border-indigo-400"
+                : "text-gray-500 border-[#1e1e30]"}`}
+            >
+              {f}
+            </button>
           ))}
         </div>
+
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value)}
+          className="bg-[#0e0e1a] border border-[#1e1e30] text-xs text-gray-400 rounded px-2 py-1"
+        >
+          <option value="score_desc">High → Low</option>
+          <option value="score_asc">Low → High</option>
+          <option value="name">Name A → Z</option>
+        </select>
       </div>
-    </div>
+
+      {/* List */}
+      <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg overflow-hidden">
+        {sorted.length === 0 && (
+          <div className="p-10 text-center text-gray-500 text-sm">
+            No users found.
+          </div>
+        )}
+
+        {sorted.map((u, i) => (
+          <div key={i} className="border-b border-[#0d0d18]">
+
+            {/* Row */}
+            <div
+              onClick={() => setExpanded(expanded === u._id ? null : u._id)}
+              className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition
+              ${expanded === u._id ? "bg-[#0f0f1c]" : "hover:bg-[#0c0c17]"}`}
+            >
+              <div className="w-8 h-8 rounded-full bg-[#13131f] flex items-center justify-center text-indigo-400 text-xs font-semibold">
+                {(u.user?.name || "?")[0]}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-gray-200">{u.user?.name}</div>
+                <div className="text-xs text-gray-500">{u.user?.email}</div>
+              </div>
+
+              <div className="w-40 flex">
+                <ScoreBar score={u.score} level={u.level} />
+              </div>
+
+              <RiskBadge level={u.level} />
+
+              {expanded === u._id
+                ? <ChevronUp size={14} className="text-gray-500" />
+                : <ChevronDown size={14} className="text-gray-500" />}
+            </div>
+
+            {/* Expanded */}
+            {expanded === u._id && (
+              <div className="pl-16 pr-5 pb-4 border-t border-[#0d0d18]">
+
+                <div className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase mt-3 mb-2">
+                  Detection breakdown
+                </div>
+
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-2">
+                  {(u.reasons || []).map((r, j) => (
+                    <div key={j} className="p-2 text-xs rounded bg-yellow-400/10 text-yellow-400 border-l-2 border-yellow-400/30">
+                      {r}
+                    </div>
+                  ))}
+                </div>
+
+                {u.accountAgeDays !== undefined && (
+                  <div className="mt-2 text-xs text-gray-500 font-mono">
+                    {Math.round(u.accountAgeDays)} days old
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        ))}
+      </div>
+
+    </AdminLayout>
   );
 }

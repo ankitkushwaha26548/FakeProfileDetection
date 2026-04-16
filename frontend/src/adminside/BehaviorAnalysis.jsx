@@ -1,251 +1,222 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Shield, AlertTriangle, CheckCircle, XCircle, Activity, ArrowLeft, Zap } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle, XCircle, Zap } from "lucide-react";
+import AdminLayout from "../components/AdminLayout";
 import * as adminApi from "../api/adminApi";
 
+const RiskChip = ({ risk }) => {
+  const cfg = {
+    HIGH:   "text-red-400 bg-red-500/10 border-red-500/20",
+    MEDIUM: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+    LOW:    "text-green-400 bg-green-500/10 border-green-500/20",
+  }[risk] || "text-gray-400 border border-[#1e1e30]";
+
+  return (
+    <span className={`text-[10px] font-bold font-mono tracking-widest px-2 py-0.5 rounded border ${cfg}`}>
+      {risk}
+    </span>
+  );
+};
+
+const getBehaviorSignals = (activities) => {
+  const sorted = [...activities].sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt)).slice(0,50);
+  let rapid = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (new Date(sorted[i].createdAt) - new Date(sorted[i+1].createdAt) < 2000) rapid++;
+  }
+  const types = sorted.map(a => a.type);
+  const dominant = types[0];
+  const sameCount = types.filter(t => t === dominant).length;
+  const risk = rapid >= 10 || sameCount >= 15 ? "HIGH" : rapid >= 5 ? "MEDIUM" : "LOW";
+  return { total: sorted.length, rapid, risk, repetitive: sameCount >= 15, dominant, recent: sorted.slice(0,8) };
+};
+
 export default function BehaviorAnalysis() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers]       = useState([]);
   const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState(null); // selected userId for drill-down
+  const [loading, setLoading]   = useState(true);
+  const [selected, setSelected] = useState(null);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [usersRes, activitiesRes] = await Promise.all([
-          adminApi.getUsersWithRisk(),
-          adminApi.getAllActivities(),
-        ]);
-        setUsers(usersRes.data || []);
-        setActivities(activitiesRes.data || []);
-      } catch (err) {
-        console.error(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    Promise.all([adminApi.getUsersWithRisk(), adminApi.getAllActivities()])
+      .then(([u, a]) => { setUsers(u.data || []); setActivities(a.data || []); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  // For each user, calculate behavior signals from their activities
-  const getBehaviorSignals = (userId) => {
-    const userActivities = activities
-      .filter((a) => String(a.user?._id || a.user) === String(userId))
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 50);
+  const getUserActivities = (uid) =>
+    activities.filter(a => String(a.user?._id || a.user) === String(uid));
 
-    let rapidActions = 0;
-    for (let i = 0; i < userActivities.length - 1; i++) {
-      const diff = new Date(userActivities[i].createdAt) - new Date(userActivities[i + 1].createdAt);
-      if (diff < 2000) rapidActions++;
-    }
+  const sel = selected ? users.find(u => String(u.user?._id) === String(selected)) : null;
+  const sig = selected ? getBehaviorSignals(getUserActivities(selected)) : null;
 
-    const types = userActivities.map((a) => a.type);
-    const sameActions = types.filter((t) => t === types[0]).length;
-    const repetitive = sameActions >= 10;
+  const actLabel = { LOGIN:"Login", POST:"Post created", LIKE_POST:"Post liked",
+                     COMMENT:"Comment", REGISTER:"Registered" };
 
-    const rapidRisk = rapidActions >= 10 ? "HIGH" : rapidActions >= 5 ? "MEDIUM" : "LOW";
-
-    return {
-      totalActions: userActivities.length,
-      rapidActions,
-      rapidRisk,
-      repetitive,
-      dominantAction: types[0] || "N/A",
-      recentActions: userActivities.slice(0, 5),
-    };
-  };
-
-  const getRiskBadge = (risk) => {
-    if (risk === "HIGH") return "bg-red-900/60 text-red-300 border border-red-700";
-    if (risk === "MEDIUM") return "bg-yellow-900/60 text-yellow-300 border border-yellow-700";
-    return "bg-green-900/60 text-green-300 border border-green-700";
-  };
-
-  const selectedUser = selected ? users.find((u) => String(u.user?._id) === String(selected)) : null;
-  const selectedSignals = selected ? getBehaviorSignals(selected) : null;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+  if (loading) return (
+    <AdminLayout title="Behavior Analysis">
+      <div className="flex items-center justify-center h-75">
+        <div className="w-7 h-7 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin" />
       </div>
-    );
-  }
+    </AdminLayout>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <div className="border-b border-gray-800 px-6 py-4 flex items-center gap-4">
-        <Link to="/admin/dashboard" className="text-gray-500 hover:text-white transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <Shield className="w-4 h-4 text-indigo-400" />
-        <span className="text-sm text-gray-400">Admin</span>
-        <span className="text-gray-700">/</span>
-        <span className="text-white font-semibold text-sm">Behavior Analysis</span>
-      </div>
+    <AdminLayout title="Behavior Analysis">
+      <div className="grid grid-cols-[240px_1fr] gap-4 h-[calc(100vh-120px)]">
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid lg:grid-cols-3 gap-6">
-
-          {/* User list */}
-          <div className="lg:col-span-1 bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800">
-              <h2 className="font-semibold text-white text-sm flex items-center gap-2">
-                <Activity className="w-4 h-4 text-purple-400" />
-                Users — Behavior Risk
-              </h2>
-            </div>
-            <div className="divide-y divide-gray-800 max-h-[600px] overflow-y-auto">
-              {users.map((u) => {
-                const signals = getBehaviorSignals(u.user?._id);
-                return (
-                  <button
-                    key={u._id}
-                    onClick={() => setSelected(selected === u.user?._id ? null : u.user?._id)}
-                    className={`w-full text-left px-5 py-3 flex items-center gap-3 transition-colors ${
-                      selected === u.user?._id ? "bg-indigo-900/30" : "hover:bg-gray-800/60"
-                    }`}
-                  >
-                    <img
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(u.user?.name || 'U')}&background=312e81&color=fff`}
-                      alt=""
-                      className="w-8 h-8 rounded-full shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{u.user?.name}</p>
-                      <p className="text-xs text-gray-500">{signals.totalActions} actions</p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded font-semibold ${getRiskBadge(signals.rapidRisk)}`}>
-                      {signals.rapidRisk}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* User list */}
+        <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-[#1e1e30]">
+            <div className="text-[11px] text-[#44445a] font-medium tracking-wide">USERS</div>
           </div>
 
-          {/* Detail panel */}
-          <div className="lg:col-span-2 space-y-5">
-            {!selected && (
-              <div className="bg-gray-900 rounded-2xl border border-gray-800 flex items-center justify-center h-64">
-                <div className="text-center">
-                  <Activity className="w-10 h-10 text-gray-700 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm">Select a user to view behavior signals</p>
-                </div>
-              </div>
-            )}
+          <div className="overflow-auto flex-1">
+            {users.map(u => {
+              const sig = getBehaviorSignals(getUserActivities(u.user?._id));
+              const isActive = selected === u.user?._id;
 
-            {selected && selectedSignals && (
-              <>
-                {/* Behavior summary */}
-                <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
-                  <div className="flex items-center gap-3 mb-5">
-                    <img
-                      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser?.user?.name || 'U')}&background=312e81&color=fff`}
-                      alt=""
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div>
-                      <p className="font-semibold text-white">{selectedUser?.user?.name}</p>
-                      <p className="text-xs text-gray-500">{selectedUser?.user?.email}</p>
+              return (
+                <div
+                  key={u._id}
+                  onClick={() => setSelected(isActive ? null : u.user?._id)}
+                  className={`flex items-center gap-3 px-4 py-2 border-b border-[#13131f] cursor-pointer transition
+                    ${isActive ? "bg-[#13132a] border-l-2 border-indigo-400" : "hover:bg-[#0f0f1c]"}`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-[#13131f] flex items-center justify-center text-[11px] font-semibold text-indigo-400">
+                    {(u.user?.name || "?")[0].toUpperCase()}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-[#e4e4ec] truncate">
+                      {u.user?.name}
                     </div>
-                    <span className={`ml-auto text-xs px-2.5 py-1 rounded-lg font-bold border ${
-                      selectedUser?.level === 'FAKE' ? 'bg-red-900/40 text-red-300 border-red-700' :
-                      selectedUser?.level === 'SUSPICIOUS' ? 'bg-yellow-900/40 text-yellow-300 border-yellow-700' :
-                      'bg-green-900/40 text-green-300 border-green-700'
-                    }`}>
-                      {selectedUser?.level}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <SignalCard label="Total actions" value={selectedSignals.totalActions} />
-                    <SignalCard
-                      label="Rapid actions"
-                      value={selectedSignals.rapidActions}
-                      alert={selectedSignals.rapidRisk !== "LOW"}
-                    />
-                    <SignalCard
-                      label="Repetitive pattern"
-                      value={selectedSignals.repetitive ? "Yes" : "No"}
-                      alert={selectedSignals.repetitive}
-                    />
-                  </div>
-
-                  {/* Behavior verdict */}
-                  <div className={`mt-5 rounded-xl p-4 border ${
-                    selectedSignals.rapidRisk === "HIGH"
-                      ? "bg-red-950/30 border-red-800/40"
-                      : selectedSignals.rapidRisk === "MEDIUM"
-                      ? "bg-yellow-950/30 border-yellow-800/40"
-                      : "bg-green-950/30 border-green-800/40"
-                  }`}>
-                    <div className="flex items-start gap-2">
-                      {selectedSignals.rapidRisk === "HIGH"
-                        ? <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                        : selectedSignals.rapidRisk === "MEDIUM"
-                        ? <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 shrink-0" />
-                        : <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                      }
-                      <div>
-                        <p className={`text-sm font-semibold ${
-                          selectedSignals.rapidRisk === "HIGH" ? "text-red-300" :
-                          selectedSignals.rapidRisk === "MEDIUM" ? "text-yellow-300" : "text-green-300"
-                        }`}>
-                          {selectedSignals.rapidRisk === "HIGH"
-                            ? "Bot-like behavior detected"
-                            : selectedSignals.rapidRisk === "MEDIUM"
-                            ? "Some rapid actions detected"
-                            : "Normal behavior pattern"}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {selectedSignals.rapidActions} actions within 2-second windows out of last 50 logged.
-                          {selectedSignals.repetitive && ` Dominant action: ${selectedSignals.dominantAction}.`}
-                        </p>
-                      </div>
+                    <div className="text-[11px] text-[#44445a]">
+                      {sig.total} actions
                     </div>
                   </div>
-                </div>
 
-                {/* Recent actions */}
-                <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-                  <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-yellow-400" />
-                    Recent Actions
-                  </h3>
-                  <div className="space-y-2">
-                    {selectedSignals.recentActions.length === 0 && (
-                      <p className="text-gray-600 text-sm">No recent actions.</p>
-                    )}
-                    {selectedSignals.recentActions.map((a, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
-                          <span className="text-sm text-gray-300">{a.type}</span>
-                        </div>
-                        <span className="text-xs text-gray-600">
-                          {a.createdAt ? new Date(a.createdAt).toLocaleString() : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <RiskChip risk={sig.risk} />
                 </div>
-              </>
-            )}
+              );
+            })}
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
 
-function SignalCard({ label, value, alert }) {
-  return (
-    <div className={`rounded-xl p-4 border ${alert ? "border-red-800/40 bg-red-950/20" : "border-gray-700 bg-gray-800/40"}`}>
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className={`text-xl font-bold ${alert ? "text-red-300" : "text-white"}`}>{value}</p>
-    </div>
+        {/* Detail panel */}
+        <div className="overflow-auto">
+          {!selected && (
+            <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg flex flex-col items-center justify-center h-75 gap-3">
+              <Activity size={32} className="text-[#1e1e30]" />
+              <p className="text-sm text-[#44445a]">
+                Select a user to view behavior signals
+              </p>
+            </div>
+          )}
+
+          {selected && sig && sel && (
+            <div className="flex flex-col gap-3">
+
+              {/* Header */}
+              <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#13131f] flex items-center justify-center text-sm font-semibold text-indigo-400">
+                  {(sel.user?.name || "?")[0].toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-[#e4e4ec]">{sel.user?.name}</div>
+                  <div className="text-xs text-[#44445a]">{sel.user?.email}</div>
+                </div>
+                <RiskChip risk={sig.risk} />
+              </div>
+
+              {/* Signal cards */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label:"Total actions", value:sig.total, alert:false },
+                  { label:"Rapid actions", value:sig.rapid, alert:sig.risk !== "LOW" },
+                  { label:"Repetitive pattern", value:sig.repetitive ? "Yes" : "No", alert:sig.repetitive },
+                ].map(card => (
+                  <div key={card.label}
+                    className={`rounded-lg p-4 border ${
+                      card.alert
+                        ? "bg-red-500/5 border-red-500/20"
+                        : "bg-[#0e0e1a] border-[#1e1e30]"
+                    }`}>
+                    <div className="text-xs text-[#44445a] mb-1">{card.label}</div>
+                    <div className={`text-xl font-light ${
+                      card.alert ? "text-red-400" : "text-[#e4e4ec]"
+                    }`}>
+                      {card.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Verdict */}
+              <div className={`rounded-lg p-4 flex gap-3 border ${
+                sig.risk === "HIGH"
+                  ? "border-red-500/20"
+                  : sig.risk === "MEDIUM"
+                  ? "border-yellow-500/20"
+                  : "border-[#1e1e30]"
+              }`}>
+                {sig.risk === "HIGH"
+                  ? <XCircle className="text-red-400 mt-1" size={16} />
+                  : sig.risk === "MEDIUM"
+                  ? <AlertTriangle className="text-yellow-400 mt-1" size={16} />
+                  : <CheckCircle className="text-green-400 mt-1" size={16} />
+                }
+
+                <div>
+                  <div className={`text-sm font-medium mb-1 ${
+                    sig.risk === "HIGH"
+                      ? "text-red-400"
+                      : sig.risk === "MEDIUM"
+                      ? "text-yellow-400"
+                      : "text-green-400"
+                  }`}>
+                    {sig.risk === "HIGH"
+                      ? "Bot-like behavior detected"
+                      : sig.risk === "MEDIUM"
+                      ? "Some rapid actions detected"
+                      : "Normal behavior pattern"}
+                  </div>
+
+                  <div className="text-xs text-[#44445a] leading-relaxed">
+                    {sig.rapid} rapid actions in last 50 logged.
+                    {sig.repetitive && ` Dominant action: ${sig.dominant}.`}
+                    {sig.risk === "LOW" && " No anomalies found."}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent actions */}
+              <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-4">
+                <div className="text-[11px] text-[#44445a] font-medium tracking-wide mb-3 flex items-center gap-2">
+                  <Zap size={12} className="text-yellow-400" />
+                  RECENT ACTIONS
+                </div>
+
+                {sig.recent.length === 0 && (
+                  <p className="text-xs text-[#44445a]">No activity recorded.</p>
+                )}
+
+                {sig.recent.map((a, i) => (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-[#13131f] text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                      <span className="text-[#8a8a9e]">{actLabel[a.type] || a.type}</span>
+                    </div>
+                    <span className="text-[#44445a] font-mono text-[11px]">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleString() : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          )}
+        </div>
+      </div>
+    </AdminLayout>
   );
 }
