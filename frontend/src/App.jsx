@@ -23,7 +23,7 @@ import QuickLookup from "./adminside/QuickLookup";
 function AdminRoute({ children }) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   if (!user?.id) return <Navigate to="/login" replace />;
-  if (user?.role !== "admin") return <Navigate to="/socialfeed" replace />;
+  if (user?.role !== "admin") return <Navigate to="/login" replace />;
   return children;
 }
 

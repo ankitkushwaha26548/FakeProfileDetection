@@ -9,5 +9,8 @@ export const getSuspiciousUsers = () => API.get("/admin/suspicious");
 export const getLoginLogs = () => API.get("/admin/logs");
 export const getAllActivities = () => API.get("/activity/all");
 export const flagUser = (userId) => API.post(`/admin/flag/${userId}`);
+export const blockUser = (userId, reason) => API.post(`/admin/users/${userId}/block`, { reason });
+export const unblockUser = (userId) => API.post(`/admin/users/${userId}/unblock`);
+export const getBlockedUsers = () => API.get(`/admin/users/blocked`);
 // backend/routes/detectionRoutes.js: POST /api/detection/scan/:userId
 export const runDetectionForUser = (userId) => API.post(`/detection/scan/${userId}`);

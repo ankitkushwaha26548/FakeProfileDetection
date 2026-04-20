@@ -1,0 +1,1918 @@
+
+======================================================================
+FILE: export_code.py
+======================================================================
+import os
+
+project_dir = r"L:\FPDetection"  # change this
+output_file = "project_code.txt"
+
+# Only include meaningful code files
+include_extensions = {
+    ".py", ".js", ".ts", ".html", ".css",
+    ".cpp", ".c", ".java", ".json"
+}
+
+# Folders to ignore
+exclude_dirs = {
+    "node_modules", ".git", "__pycache__",
+    "dist", "build", ".next", "venv", ".vscode"
+}
+
+# Files to ignore
+exclude_files = {
+    "package-lock.json", "yarn.lock"
+}
+
+# Max file size (in bytes) -> 200 KB
+MAX_FILE_SIZE = 200 * 1024
+
+total_lines = 0
+
+with open(output_file, "w", encoding="utf-8") as outfile:
+    for root, dirs, files in os.walk(project_dir):
+
+        # Remove unwanted directories
+        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+
+        for file in files:
+            file_path = os.path.join(root, file)
+            rel_path = os.path.relpath(file_path, project_dir)
+
+            # Skip unwanted files
+            if file in exclude_files:
+                continue
+
+            # Skip by extension
+            _, ext = os.path.splitext(file)
+            if ext.lower() not in include_extensions:
+                continue
+
+            # Skip minified files
+            if ".min." in file:
+                continue
+
+            # Skip large files
+            if os.path.getsize(file_path) > MAX_FILE_SIZE:
+                continue
+
+            try:
+                with open(file_path, "r", encoding="utf-8") as infile:
+                    lines = infile.readlines()
+
+                # Skip files with too many lines (likely generated)
+                if len(lines) > 2000:
+                    continue
+
+                outfile.write("\n" + "="*70 + "\n")
+                outfile.write(f"FILE: {rel_path}\n")
+                outfile.write("="*70 + "\n")
+
+                outfile.writelines(lines)
+                total_lines += len(lines)
+
+            except:
+                continue
+
+print(f"✅ Done! Clean code exported. Total lines: {total_lines}")
+======================================================================
+FILE: backend\package.json
+======================================================================
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
+
+======================================================================
+FILE: backend\server.js
+======================================================================
+import express from 'express';
+import cors from 'cors';
+import connectDB from './config/db.js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+
+
+dotenv.config();
+connectDB();
+
+
+const app = express();
+app.use(cors({
+  origin: ['http://localhost:5000', 'http://localhost:3000', 'http://localhost:5001', 'http://127.0.0.1:5001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+
+
+import errorHandler from "./middleware/errorHandler.js";
+import authRoutes from "./routes/authRoutes.js";
+import profileRoutes from "./routes/profileRoutes.js";
+import postRoutes from "./routes/postRoutes.js";
+import activityRoutes from "./routes/activityRoutes.js";
+import detectionRoutes from "./routes/detectionRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
+
+app.use("/api/auth", authRoutes);
+
+// Routes
+app.use("/api/profile", profileRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/activity", activityRoutes);
+app.use("/api/detection", detectionRoutes);
+app.use("/api/admin", adminRoutes);
+
+// Error handler (must be last so it catches next(err) from routes)
+app.use(errorHandler);
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../frontend/dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+  });
+}
+
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT , 'localhost' , () => console.log(`Server running on port ${PORT}`));
+
+======================================================================
+FILE: backend\config\db.js
+======================================================================
+import mongoose from 'mongoose';
+
+const connectDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI);
+        console.log('MongoDB Connected');
+    }catch (err) {
+        console.error("MongoDB Error: ", err.message);
+        process.exit(1);   
+    }
+}
+
+export default connectDB;
+
+======================================================================
+FILE: backend\controllers\activityController.js
+======================================================================
+import Activity from "../models/Activity.js";
+
+// Create activity log
+export const createActivity = async (req, res) => {
+  try {
+    const { type, targetId, metadata } = req.body;
+
+    const activity = await Activity.create({
+      user: req.user._id,
+      type,
+      targetId,
+      metadata,
+    });
+
+    res.status(201).json(activity);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all activities (admin)
+export const getAllActivities = async (req, res) => {
+  try {
+    const activities = await Activity.find()
+      .populate("user", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get user activities
+export const getUserActivities = async (req, res) => {
+  try {
+    const activities = await Activity.find({ user: req.user._id })
+      .sort({ createdAt: -1 });
+
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Activity stats (for dashboard)
+export const getActivityStats = async (req, res) => {
+  try {
+    const total = await Activity.countDocuments();
+    const posts = await Activity.countDocuments({ type: "POST" });
+    const likes = await Activity.countDocuments({ type: "LIKE_POST" });
+    const comments = await Activity.countDocuments({ type: "COMMENT" });
+    const logins = await Activity.countDocuments({ type: "LOGIN" });
+
+    res.json({
+      total,
+      posts,
+      likes,
+      comments,
+      logins
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+======================================================================
+FILE: backend\controllers\adminController.js
+======================================================================
+import User from "../models/User.js";
+import RiskScore from "../models/RiskScore.js";
+import Activity from "../models/Activity.js";
+import LoginLog from "../models/LoginLog.js";
+
+// Dashboard stats
+export const getDashboardStats = async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments({ role: { $ne: 'admin' } });
+    const totalActivities = await Activity.countDocuments();
+
+    const genuine = await RiskScore.countDocuments({ level: "GENUINE" });
+    const suspicious = await RiskScore.countDocuments({ level: "SUSPICIOUS" });
+    const fake = await RiskScore.countDocuments({ level: "FAKE" });
+
+    res.json({
+      totalUsers,
+      totalActivities,
+      genuine,
+      suspicious,
+      fake
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all users with risk
+export const getUsersWithRisk = async (req, res) => {
+  try {
+    const risks = await RiskScore.find()
+      .populate({
+        path: "user",
+        select: "name email role isBlocked blockReason blockedAt",
+        match: { role: { $ne: 'admin' } }
+      })
+      .then(risks => risks.filter(risk => risk.user !== null)); // Remove risks where user was filtered out
+
+    res.json(risks);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get fake users only
+export const getFakeUsers = async (req, res) => {
+  try {
+    const fakeUsers = await RiskScore.find({ level: "FAKE" })
+      .populate({
+        path: "user",
+        select: "name email",
+        match: { role: { $ne: 'admin' } }
+      })
+      .then(risks => risks.filter(risk => risk.user !== null));
+
+    res.json(fakeUsers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get suspicious users only
+export const getSuspiciousUsers = async (req, res) => {
+  try {
+    const suspiciousUsers = await RiskScore.find({ level: "SUSPICIOUS" })
+      .populate({
+        path: "user",
+        select: "name email",
+        match: { role: { $ne: 'admin' } }
+      })
+      .then(risks => risks.filter(risk => risk.user !== null));
+
+    res.json(suspiciousUsers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Login log monitoring
+export const getLoginLogs = async (req, res) => {
+  try {
+    const logs = await LoginLog.find()
+      .populate({
+        path: "user",
+        select: "name email role"
+      })
+      .sort({ createdAt: -1 });
+
+    // Filter out logs where user is null or user is admin
+    const filteredLogs = logs.filter(log => log.user && log.user.role !== 'admin');
+
+    res.json(filteredLogs);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Flag user manually
+export const flagUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: "Cannot flag admin users" });
+    }
+
+    const risk = await RiskScore.findOne({ user: req.params.userId });
+
+    if (!risk) {
+      return res.status(404).json({ message: "Risk profile not found" });
+    }
+
+    risk.level = "FAKE";
+    risk.score = 100;
+    risk.reasons.push("Manually flagged by admin");
+    await risk.save();
+
+    res.json({ message: "User flagged as FAKE" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//block a user 
+export const blockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    //Find user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    //prevent blocking admins
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: "Cannot block admin users" });
+    }
+
+    //check if already blocked
+    if (user.isBlocked) {
+      return res.status(400).json({ message: "User is already blocked" });
+    }
+
+    //block the user
+    user.isBlocked = true;
+    user.blockedAt = new Date();
+    user.blockedBy = req.user._id; //Admin who blocked
+    user.blockReason = reason || 'Fake account detected';
+    await user.save();
+
+    // Also update or create risk profile as FAKE
+    const currentRisk = await RiskScore.findOne({ user: userId });
+    if (currentRisk) {
+      currentRisk.score = 100;
+      currentRisk.level = "FAKE";
+      currentRisk.reasons = [...currentRisk.reasons, "User blocked by admin"];
+      await currentRisk.save();
+    } else {
+      await RiskScore.create({
+        user: userId,
+        score: 100,
+        level: "FAKE",
+        reasons: ["User blocked by admin"]
+      });
+    }
+
+    res.status(200).json({
+      message: "User blocked successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isBlocked: user.isBlocked, 
+        blockedAt: user.blockedAt,
+        blockReason: user.blockReason
+      }
+ });
+
+  } catch (error) {
+    console.error('Block user error:', error);
+    res.status(500).json({ message: error.message });
+  }
+}
+
+// Unblock a user
+export const unblockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: "Cannot unblock admin users" });
+    }
+
+    if (!user.isBlocked) {
+      return res.status(400).json({ message: "User is not blocked" });
+    }
+
+    user.isBlocked = false;
+    user.blockedAt = null;
+    user.blockedBy = null;
+    user.blockReason = null;
+    await user.save();
+
+    res.status(200).json({ 
+      message: "User unblocked successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isBlocked: user.isBlocked
+      } 
+    });
+
+  } catch (error) {
+    console.error('Unblock user error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//Get all blocked users
+export const getBlockedUsers = async (req, res) => {
+  try {
+    const blockedUsers = await User.find({ isBlocked: true })
+      .select('-password')
+      .populate('blockedBy', 'name email')
+      .sort({ blockedAt: -1 }); 
+
+      res.status(200).json(
+        {
+          count: blockedUsers.length,
+          data: blockedUsers
+        }
+      );
+
+  } catch (error) {
+    console.error('Get blocked users error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+======================================================================
+FILE: backend\controllers\authController.js
+======================================================================
+import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { logActivity } from '../utils/activityLogger.js';
+import runDetection from '../utils/fakeDetection.js';
+import LoginLog from '../models/LoginLog.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'FPDFPDFPDFPD';
+
+// Register User
+export const registerUser = async (req, res) => {
+    try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: 'Please provide name, email and password' });
+    }
+
+    //check if user exists
+    let user = await User.findOne({ email });
+    if(user) {
+        return res.status(400).json({ message: 'User already exists' });
+    }
+
+    //hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    //create user
+    user = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role: email.endsWith('@admin.com') ? 'admin' : 'user'
+    });
+
+    try {
+        await LoginLog.create({
+            user: user._id,
+            ip: req.ip || '127.0.0.1',
+            userAgent: req.headers["user-agent"] || 'unknown',
+            device: req.headers["user-agent"] || 'unknown',
+            location: "Unknown"
+        });
+        await runDetection(user._id);
+        await logActivity(user._id, "REGISTER", null, {
+            ip: req.ip,
+            userAgent: req.headers['user-agent']
+        });
+    } catch (err) {
+        console.error("Post-registration tasks failed:", err.message);
+        // We don't want to fail registration if these secondary tasks fail
+    }
+
+    //token
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(201).json({
+        message: 'User registered successfully',
+        token,
+        user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+        }
+    });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+
+// Login User
+export const loginUser = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Please provide email and password' });
+        }
+
+        //check if user exists
+        const user = await User.findOne({ email });
+        if(!user) {
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        //check password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if(!isMatch) {
+            return res.status(400).json({ message: 'Invalid credentials' });
+        }
+
+        if (user.isBlocked) {
+            return res.status(403).json({
+                message: 'Your account has been blocked',
+                reason: user.blockReason || 'Your account has been blocked',
+                blockedAt: user.blockedAt,
+                isBlocked: true
+            });
+        }
+
+        // Run side effects before sending response (so we don't double-send on error)
+        try {
+            await LoginLog.create({
+                user: user._id,
+                ip: req.ip || '127.0.0.1',
+                userAgent: req.headers["user-agent"] || 'unknown',
+                device: req.headers["user-agent"] || 'unknown',
+                location: "Unknown"
+            });
+            runDetection(user._id).catch((err) => {
+                console.error("Background detection failed (login):", err.message);
+            });
+            await logActivity(user._id, "LOGIN", null, {
+                ip: req.ip,
+                userAgent: req.headers['user-agent']
+            });
+        } catch (err) {
+            console.error("Post-login tasks failed:", err.message);
+        }
+
+        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+        res.json({
+            message: 'User logged in successfully',
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Get current user (protected)
+export const getMe = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Get current user's login logs (protected)
+export const getMyLoginLogs = async (req, res) => {
+    try {
+        const logs = await LoginLog.find({ user: req.user._id })
+            .sort({ createdAt: -1 })
+            .limit(50);
+        res.json(logs);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+======================================================================
+FILE: backend\controllers\detectionContoller.js
+======================================================================
+import runDetection from '../utils/fakeDetection.js';
+import RiskScore from "../models/RiskScore.js";
+
+//Run detection manually
+export const runDetectionForUser = async (req, res) => {
+    try {
+        const result = await runDetection(req.params.userId);
+        res.json ({
+            message: "Detection completed",
+            result
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+//Get my risk score 
+export const getMyRisk = async (req, res) => {
+    try {
+        const risk = await RiskScore.findOne({ user: req.user._id });
+        res.json(risk || { score: 0, level: "GENUINE" });
+} catch (error) {
+res.status(500).json({ error: error.message });
+    }
+};
+
+//Admin.. get all risky users
+export const getAllRiskyUsers = async (req, res) => {
+    try{
+        const risks = await RiskScore.find().populate("user", "name email");
+        res.json(risks);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+======================================================================
+FILE: backend\controllers\postController.js
+======================================================================
+import Post from '../models/Post.js';
+import RiskScore from '../models/RiskScore.js';
+import { logActivity } from '../utils/activityLogger.js';
+import runDetection from '../utils/fakeDetection.js';
+
+// Create a new post
+export const createPost = async (req, res) => {
+    try {
+        const post = await Post.create({
+        user: req.user._id,
+        content: req.body.content
+    });
+
+    await logActivity(req.user._id, "POST", post._id);
+    runDetection(req.user._id).catch((err) => {
+        console.error("Background detection failed (create post):", err.message);
+    });
+
+    res.status(201).json(post);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+//Like Post
+export const likePost = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        if(!post.likes.includes(req.user._id)) {
+            post.likes.push(req.user._id);
+            await post.save();
+
+            await logActivity(req.user._id, "LIKE_POST", post._id);
+            runDetection(req.user._id).catch((err) => {
+                console.error("Background detection failed (like post):", err.message);
+            });
+        }
+
+        res.json(post);
+    }  catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+//Comment on Post
+export const commentOnPost = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        post.comments.push({
+            user: req.user._id,
+            text: req.body.text
+        });
+
+        await post.save();
+
+        await logActivity(req.user._id, "COMMENT", post._id);
+        runDetection(req.user._id).catch((err) => {
+            console.error("Background detection failed (comment):", err.message);
+        });
+
+        res.json(post);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Get Feed (with risk level per user)
+export const getFeed = async (req, res) => {
+    try {
+        const posts = await Post.find()
+            .populate('user', 'name')
+            .populate('comments.user', 'name')
+            .sort({ createdAt: -1 })
+            .lean();
+        const userIds = [...new Set(posts.map((p) => p.user?._id).filter(Boolean))];
+        const risks = await RiskScore.find({ user: { $in: userIds } }).lean();
+        const riskByUser = Object.fromEntries(risks.map((r) => [String(r.user), r.level]));
+        const postsWithRisk = posts.map((p) => ({
+            ...p,
+            user: p.user ? { ...p.user, riskLevel: riskByUser[String(p.user._id)] || 'GENUINE' } : p.user,
+        }));
+        res.json(postsWithRisk);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+======================================================================
+FILE: backend\controllers\profileController.js
+======================================================================
+import Profile from "../models/Profile.js";
+import ProfileCompleteness from "../utils/profileCompleteness.js";
+import runDetection from "../utils/fakeDetection.js";
+
+// Create or update user profile
+export const createOrUpdateProfile = async (req, res) => {
+    try {
+        const { bio, profileImage, phone, location } = req.body;
+
+        let profile = await Profile.findOne({ user: req.user._id });
+
+        if (profile) {
+            //update - explicitly set values (even if empty) to allow clearing fields
+            profile.bio = bio !== undefined ? bio : profile.bio;
+            profile.profileImage = profileImage !== undefined ? profileImage : profile.profileImage;
+            profile.phone = phone !== undefined ? phone : profile.phone;
+            profile.location = location !== undefined ? location : profile.location;
+        }
+        else {
+            //create new profile
+            profile = new Profile({
+                user: req.user._id,
+                bio: bio || '',
+                profileImage: profileImage || '',
+                phone: phone || '',
+                location: location || ''
+            });
+        }
+        //calculate profile completeness
+        profile.profileCompleteness = ProfileCompleteness(profile);
+        console.log(`Profile updated for user ${req.user._id}, completeness: ${profile.profileCompleteness}`);
+
+        await profile.save();
+        // Trigger detection (runs in background)
+        runDetection(req.user._id).catch((err) => {
+            console.error("Background detection failed (profile):", err.message);
+        });
+
+        res.json({
+            message: "Profile Saved",
+            profile
+        });
+
+    } catch (error) {
+        console.error("Profile update error:", error.message);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+
+// Get my profile
+export const getMyProfile = async (req, res) => {
+    try {
+        const profile = await Profile.findOne({ user: req.user._id }).populate('user', 'name email');
+        res.json(profile);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+
+
+======================================================================
+FILE: backend\middleware\adminMiddleware.js
+======================================================================
+const adminMiddleware = (req, res, next) => {
+    try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+      console.log("Not authenticated");
+    }
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access only" });
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({ message: "Admin middleware error" });
+  }
+};
+
+export default adminMiddleware
+
+======================================================================
+FILE: backend\middleware\authMiddleware.js
+======================================================================
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'FPDFPDFPDFPD';
+
+// Middleware to protect routes
+export const protect = async (req, res, next) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+
+        if (!token) {
+            return res.status(401).json({ message: 'No token, authorization denied' });
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = await User.findById(decoded.id).select('-password');
+
+        if (!req.user) {
+            return res.status(401).json({ message: 'User not found' });
+        }
+
+        if (req.user.isBlocked) {
+            return res.status(403).json({
+                message: 'Your account has been blocked',
+                reason: req.user.blockReason || 'Blocked by admin',
+                blockedAt: req.user.blockedAt,
+                isBlocked: true
+            });
+        }
+
+        next();
+     } catch (err) {
+        res.status(401).json({ message: 'Token is not valid' });
+     }  
+    };
+
+// Middleware to restrict access to specific roles
+export const authorize = (...roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ 
+                message: `User role ${req.user.role} is not authorized to access this route` 
+            });
+        }
+        next();
+    }; 
+};
+
+export default protect;
+
+======================================================================
+FILE: backend\middleware\errorHandler.js
+======================================================================
+const errorHandler = (err, req, res, next) => {
+  console.error("ERROR:", err.stack);
+
+  const statusCode = err.statusCode || 500;
+
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV === "development" && { stack: err.stack })
+  });
+};
+
+export default errorHandler;
+
+======================================================================
+FILE: backend\models\Activity.js
+======================================================================
+import mongoose from 'mongoose';
+
+const activitySchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+
+    type: {
+        type: String,
+        enum: ['POST', 'LIKE_POST', 'COMMENT', 'LOGIN', 'REGISTER'],
+        required: true
+    },
+
+    targetId: {
+        type: mongoose.Schema.Types.ObjectId
+    },
+
+    metadata: {
+        type: Object
+    },
+
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+const Activity = mongoose.model('Activity', activitySchema);
+export default Activity;
+======================================================================
+FILE: backend\models\LoginLog.js
+======================================================================
+import mongoose from "mongoose";
+
+const loginLogSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true
+  },
+
+  ip: {
+    type: String,
+    required: true
+  },
+
+  userAgent: {
+    type: String
+  },
+
+  device: {
+    type: String
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+export default mongoose.model("LoginLog", loginLogSchema);
+
+======================================================================
+FILE: backend\models\Post.js
+======================================================================
+import mongoose from "mongoose";
+
+const postSchema = new mongoose.Schema(
+    {
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true
+        },
+
+        content: {
+            type: String,
+            required: true
+        },
+
+        likes: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }],
+
+        comments: [{
+            user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+            text: { type: String, required: true },
+            createdAt: { type: Date, default: Date.now }
+        }],
+
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+const Post = mongoose.model("Post", postSchema);
+export default Post;
+======================================================================
+FILE: backend\models\Profile.js
+======================================================================
+import mongoose from 'mongoose';
+
+const profileSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+
+    bio: {
+        type: String,
+        default: ''
+    },
+
+    profileImage: {
+        type: String,
+        default: ''
+    },
+
+    phone: {
+        type: String,
+        default: ''
+    },
+
+    location: {
+        type: String,
+        default: ''
+    },
+
+    profileCompleteness: {
+        type: Number,
+        default: 0
+    },
+
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+
+const Profile = mongoose.model('Profile', profileSchema);
+export default Profile;
+======================================================================
+FILE: backend\models\RiskScore.js
+======================================================================
+import mongoose from "mongoose";
+
+const riskScoreSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+        unique: true
+    },
+
+    score: {
+        type: Number,
+        default: 0
+    },
+
+    level: {
+        type: String,
+        enum: ['GENUINE', 'SUSPICIOUS', 'FAKE'],
+        default: 'GENUINE'
+    },
+
+    reasons: [{
+        type: String
+    }
+    ],
+
+    accountAgeDays: {
+        type: Number,
+        default: 0
+    },
+
+    confidence: {
+        type: Number,
+        default: 0
+    },
+
+    lastUpdated: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+const RiskScore = mongoose.model("RiskScore", riskScoreSchema);
+export default RiskScore;
+======================================================================
+FILE: backend\models\User.js
+======================================================================
+import mongoose from "mongoose";
+
+const userSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    email: {
+        type: String,
+        required: true,
+        unique: true
+ 
+    },
+    password: {
+        type: String,
+        required: true
+    },
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+
+    //add blocking functionality 
+    isBlocked: {
+        type: Boolean,
+        default: false
+    },
+    blockedAt: {
+        type: Date,
+        default: null
+    }, 
+    blockedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    blockReason: {
+        type: String,
+        default: null
+    }
+}, { 
+    timestamps: true
+});
+
+const User = mongoose.model('User', userSchema);
+export default User;
+
+======================================================================
+FILE: backend\routes\activityRoutes.js
+======================================================================
+import express from "express";
+import protect from '../middleware/authMiddleware.js';
+import adminMiddleware from "../middleware/adminMiddleware.js";
+import { createActivity, getActivityStats,getAllActivities,getUserActivities } from "../controllers/activityController.js";
+
+
+const router = express.Router();
+
+// User routes
+router.post("/", protect, createActivity);
+router.get("/me", protect, getUserActivities);
+
+// Admin routes
+router.get("/all", protect, adminMiddleware, getAllActivities);
+router.get("/stats", protect, adminMiddleware, getActivityStats);
+
+export default router;
+
+======================================================================
+FILE: backend\routes\adminRoutes.js
+======================================================================
+import express from "express";
+import { protect, authorize } from "../middleware/authMiddleware.js";
+import {
+  getDashboardStats,
+  getUsersWithRisk,
+  getFakeUsers,
+  getSuspiciousUsers,
+  getLoginLogs,
+  flagUser,
+  blockUser,
+  unblockUser,
+  getBlockedUsers
+} from "../controllers/adminController.js";
+
+const router = express.Router();
+
+// Role-based access control: only admins can access these routes
+router.use(protect);
+router.use(authorize('admin'));
+router.get("/stats", getDashboardStats);
+router.get("/users", getUsersWithRisk);
+router.get("/fake", getFakeUsers);
+router.get("/suspicious", getSuspiciousUsers);
+router.get("/logs", getLoginLogs);
+router.post("/flag/:userId", flagUser);
+router.post("/users/:userId/block", blockUser);
+router.post("/users/:userId/unblock", unblockUser);
+router.get("/users/blocked", getBlockedUsers);
+
+export default router;
+
+======================================================================
+FILE: backend\routes\authRoutes.js
+======================================================================
+import express from 'express';
+import { protect } from '../middleware/authMiddleware.js';
+import { registerUser, loginUser, getMe, getMyLoginLogs } from '../controllers/authController.js';
+
+const router = express.Router();
+
+router.post('/register', registerUser);
+router.post('/login', loginUser);
+router.get('/me', protect, getMe);
+router.get('/login-logs', protect, getMyLoginLogs);
+
+export default router;
+======================================================================
+FILE: backend\routes\detectionRoutes.js
+======================================================================
+import express from 'express';
+import protect from '../middleware/authMiddleware.js';
+import adminMiddleware from '../middleware/adminMiddleware.js';
+import { runDetectionForUser, getMyRisk, getAllRiskyUsers } from '../controllers/detectionContoller.js';
+
+const router = express.Router();
+
+// User: get own risk
+router.get("/me", protect, getMyRisk);
+
+// Admin: manual scan and all risky users
+router.post("/scan/:userId", protect, adminMiddleware, runDetectionForUser);
+router.get("/all", protect, adminMiddleware, getAllRiskyUsers);
+
+export default router;
+
+======================================================================
+FILE: backend\routes\postRoutes.js
+======================================================================
+import express from 'express';
+import protect from '../middleware/authMiddleware.js';
+
+const router = express.Router();
+
+import { createPost, likePost, commentOnPost, getFeed } from '../controllers/postController.js';
+
+router.post('/', protect, createPost);
+router.get('/', protect, getFeed);
+router.post('/:id/like', protect, likePost);
+router.post('/:id/comment', protect, commentOnPost);
+
+export default router;
+======================================================================
+FILE: backend\routes\profileRoutes.js
+======================================================================
+import express from 'express';
+import protect from '../middleware/authMiddleware.js';
+import { getMyProfile, createOrUpdateProfile } from '../controllers/profileController.js';
+
+const router = express.Router();
+
+router.post('/', protect, createOrUpdateProfile);
+router.put('/update', protect, createOrUpdateProfile);
+router.post('/upload', protect, createOrUpdateProfile);
+router.get('/me', protect, getMyProfile);
+
+export default router;
+
+======================================================================
+FILE: backend\utils\activityLogger.js
+======================================================================
+import Activity from "../models/Activity.js";
+
+// Log user activity
+export const logActivity = async (userId, type, targetId=null, metadata = {}) => {
+    try {
+        await Activity.create({
+            user: userId,
+            type,
+            targetId,
+            metadata
+        });
+    } catch (error) {
+        console.error("Activity log error:", error.message);
+    }
+};
+======================================================================
+FILE: backend\utils\fakeDetection.js
+======================================================================
+import Profile from '../models/Profile.js';
+import Activity from '../models/Activity.js';
+import RiskScore from '../models/RiskScore.js';
+import LoginLog from '../models/LoginLog.js';
+import User from '../models/User.js';
+import riskCalculator from './riskCalculator.js';
+import profileCompleteness from './profileCompleteness.js';
+
+const runDetection = async (userId) => {
+  try {
+    let score = 0;
+    let reasons = [];
+
+    const [profile, totalActivities, logins, recentActivities, user] = await Promise.all([
+      Profile.findOne({ user: userId }),
+      Activity.countDocuments({ user: userId }),
+      LoginLog.find({ user: userId }).sort({ createdAt: -1 }).limit(10),
+      Activity.find({ user: userId }).sort({ createdAt: -1 }).limit(50),
+      User.findById(userId)
+    ]);
+
+    // 1. ACCOUNT AGE
+    const accountAgeDays =
+      (Date.now() - new Date(user?.createdAt || Date.now())) /
+      (1000 * 60 * 60 * 24);
+
+    const isNewUser = accountAgeDays < 3;
+
+    
+    // 2. PROFILE
+    const completeness = profileCompleteness(profile);
+    if (!profile || completeness < 50) {
+      score += 15;
+      reasons.push("Incomplete profile");
+    } else {
+      reasons.push("Complete profile");
+    }
+
+    // 3. ACTIVITY
+    if (totalActivities === 0) {
+      score += 15;
+      reasons.push("No activity");
+    } else if (totalActivities > 50 && isNewUser) {
+      score += 15;
+      reasons.push("New account high activity");
+    } else if (totalActivities > 60) {
+      score += 10;
+      reasons.push("Very high activity");
+    } else {
+      reasons.push("Normal activity");
+    }
+
+    // 4. LOGIN
+    if (logins.length >= 5 && !isNewUser) {
+      const diff =
+        new Date(logins[0].createdAt) -
+        new Date(logins[4].createdAt);
+
+      if (diff < 10 * 60 * 1000) {
+        score += 10;
+        reasons.push("Frequent login");
+      } else {
+        reasons.push("Normal login");
+      }
+    }
+
+    //new user + login
+    if (isNewUser && logins.length >= 5) {
+    score += 10;
+    reasons.push("New account with multiple logins");
+    }
+
+    // 5. IP
+    const uniqueIPs = [...new Set(logins.map(l => l.ip))];
+
+    if (uniqueIPs.length >= 3) {
+      score += 15;
+      reasons.push("Multiple IP changes");
+    } else {
+      reasons.push("Stable IP");
+    }
+
+    
+    // IP RISK + Login
+    if (logins.length >= 5 && uniqueIPs.length >= 3) {
+    score += 15;
+    reasons.push("Multiple logins from different IPs");
+    }
+
+    // 6. BEHAVIOR
+    let behaviorRisk = "LOW";
+
+    if (recentActivities.length >= 10 && !isNewUser) {
+      let rapid = 0;
+
+      for (let i = 0; i < recentActivities.length - 1; i++) {
+        const diff =
+          new Date(recentActivities[i].createdAt) -
+          new Date(recentActivities[i + 1].createdAt);
+
+        if (diff < 5000) rapid++;
+      }
+
+      if (rapid >= 10) behaviorRisk = "HIGH";
+      else if (rapid >= 5) behaviorRisk = "MEDIUM";
+    }
+
+    // 7. DEVICE
+    const deviceRisk = uniqueIPs.length >= 5 ? "HIGH" : "LOW";
+
+    // 8. ADVANCED ENGINE
+    const calc = riskCalculator({
+      behaviorRisk,
+      deviceRisk,
+      accountAgeDays
+    });
+
+    score += calc.score;
+    reasons = [...new Set([...reasons, ...calc.reasons])];
+
+    if (behaviorRisk === "HIGH" && uniqueIPs.length >= 3) {
+      score += 20;
+      reasons.push("Bot + IP risk combo");
+    }
+
+    if (totalActivities === 0 && accountAgeDays > 10) {
+      score += 15;
+      reasons.push("Inactive old account");
+    }
+
+    // 9. CONFIDENCE
+    const confidence = Math.min(score, 100);
+
+    // 10. FINAL LEVEL
+    let finalLevel = "GENUINE";
+
+    if (score >= 60) finalLevel = "FAKE";
+    else if (score >= 30) finalLevel = "SUSPICIOUS";
+
+    console.log({
+      userId,score,behaviorRisk,deviceRisk,totalActivities,uniqueIPs: uniqueIPs.length,accountAgeDays,
+      finalLevel,reasons
+    });
+
+    return await saveResult(
+      userId,
+      score,
+      finalLevel,
+      reasons,
+      accountAgeDays,
+      confidence
+    );
+
+  } catch (error) {
+    console.error("Detection error:", error.message);
+    return null;
+  }
+};
+
+const saveResult = async (userId, score, level, reasons, accountAgeDays, confidence) => {
+  let risk = await RiskScore.findOne({ user: userId });
+
+  if (!risk) {
+    return await RiskScore.create({
+      user: userId,
+      score,
+      level,
+      reasons,
+      accountAgeDays,
+      confidence
+    });
+  } else {
+    risk.score = score;
+    risk.level = level;
+    risk.reasons = reasons;
+    risk.accountAgeDays = accountAgeDays;
+    risk.confidence = confidence;
+    risk.lastUpdated = new Date();
+    return await risk.save();
+  }
+};
+
+export default runDetection;
+======================================================================
+FILE: backend\utils\profileCompleteness.js
+======================================================================
+const ProfileCompleteness = (profile) => {
+  if (!profile) return 0;
+
+  let score = 0;
+
+  if (profile.profileImage) score += 15;
+  if (profile.bio) score += 25;
+  if (profile.phone) score += 30;
+  if (profile.location) score += 30;
+
+  return score; // out of 100
+};
+
+export default ProfileCompleteness;
+======================================================================
+FILE: backend\utils\riskCalculator.js
+======================================================================
+export default function riskCalculator({
+  behaviorRisk,
+  deviceRisk,
+  accountAgeDays = 0
+}) {
+  let score = 0;
+  let reasons = [];
+
+  const isNewUser = accountAgeDays < 3;
+
+  // 1. BEHAVIOR (Weight: 20)
+  if (!isNewUser) {
+    if (behaviorRisk === "HIGH") {
+      score += 20;
+      reasons.push("Bot-like behavior");
+    } else if (behaviorRisk === "MEDIUM") {
+      score += 10;
+      reasons.push("Unusual behavior");
+    } else {
+      reasons.push("Normal behavior");
+    }
+  }
+
+  // 2. DEVICE (Weight: 10)
+  if (!isNewUser) {
+    if (deviceRisk === "HIGH") {
+      score += 10;
+      reasons.push("Multiple device usage");
+    } else {
+      reasons.push("Stable device usage");
+    }
+  }
+
+  return { score, reasons };
+}
+======================================================================
+FILE: frontend\eslint.config.js
+======================================================================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+======================================================================
+FILE: frontend\index.html
+======================================================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/detect.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FakeDetect</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+======================================================================
+FILE: frontend\package.json
+======================================================================
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@tailwindcss/vite": "^4.1.18",
+    "axios": "^1.13.5",
+    "lucide-react": "^0.563.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.0",
+    "recharts": "^3.8.1",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "vite": "^7.3.1"
+  }
+}
+
+======================================================================
+FILE: frontend\vite.config.js
+======================================================================
+import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [tailwindcss(), react()],
+  server: {
+    host: '0.0.0.0',
+    port: 5000,             //frontend port
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',  //backend port
+        changeOrigin: true,
+      },
+    },
+  },
+})
+
+======================================================================
+FILE: frontend\src\App.css
+======================================================================
+
+======================================================================
+FILE: frontend\src\index.css
+======================================================================
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+@import "@fontsource/inter";
+
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg-base:     #09090f;
+  --bg-surface:  #0e0e1a;
+  --bg-raised:   #13131f;
+  --bg-hover:    #17172a;
+  --border:      #1e1e30;
+  --border-dim:  #141420;
+
+  --text-primary:   #e4e4ec;
+  --text-secondary: #8a8a9e;
+  --text-muted:     #44445a;
+
+  --genuine:    #4ade80;
+  --suspicious: #f59e0b;
+  --fake:       #f87171;
+  --accent:     #818cf8;
+
+  --genuine-bg:    rgba(74,222,128,0.07);
+  --suspicious-bg: rgba(245,158,11,0.07);
+  --fake-bg:       rgba(248,113,113,0.07);
+  --accent-bg:     rgba(129,140,248,0.07);
+
+  --genuine-border:    rgba(74,222,128,0.18);
+  --suspicious-border: rgba(245,158,11,0.18);
+  --fake-border:       rgba(248,113,113,0.18);
+  --accent-border:     rgba(129,140,248,0.18);
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Mono font utility */
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Remove default focus outline, add custom */
+*:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: -0.5px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+======================================================================
+FILE: frontend\src\api\activityApi.js
+======================================================================
+import API from "./axiosInstance";
+
+export const getMyActivities = () =>
+  API.get("/activity/me");
+
+export const getAllActivities = () =>
+  API.get("/activity/all");
+
+export const getActivityStats = () =>
+  API.get("/activity/stats");
+
+======================================================================
+FILE: frontend\src\api\adminApi.js
+======================================================================
+import API from "./axiosInstance";
+
+// Paths align with backend/routes/adminRoutes.js (mounted at /api/admin)
+export const getDashboardStats = () => API.get("/admin/stats");
+export const getUsersWithRisk = () => API.get("/admin/users");
+export const getUsers = () => API.get("/admin/users");
+export const getFakeUsers = () => API.get("/admin/fake");
+export const getSuspiciousUsers = () => API.get("/admin/suspicious");
+export const getLoginLogs = () => API.get("/admin/logs");
+export const getAllActivities = () => API.get("/activity/all");
+export const flagUser = (userId) => API.post(`/admin/flag/${userId}`);
+export const blockUser = (userId, reason) => API.post(`/admin/users/${userId}/block`, { reason });
+export const unblockUser = (userId) => API.post(`/admin/users/${userId}/unblock`);
+export const getBlockedUsers = () => API.get(`/admin/users/blocked`);
+// backend/routes/detectionRoutes.js: POST /api/detection/scan/:userId
+export const runDetectionForUser = (userId) => API.post(`/detection/scan/${userId}`);
+
+======================================================================
+FILE: frontend\src\api\authApi.js
+======================================================================
+import API from "./axiosInstance";
+
+export const registerUser = (data) =>
+  API.post("/auth/register", data);
+
+export const loginUser = (data) =>
+  API.post("/auth/login", data);
+
+export const getCurrentUser = () =>
+  API.get("/auth/me");
+ 
+======================================================================
+FILE: frontend\src\api\axiosInstance.js
+======================================================================
+import axios from "axios";
+
+const axiosInstance = axios.create({
+  // Backend runs on port 3000 (frontend may run on 5001 due to port conflicts)
+  baseURL: 'http://localhost:3000/api',
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+
+// Attach JWT token automatically
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");``
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+export default axiosInstance;
+
+======================================================================
+FILE: frontend\src\api\detectionApi.js
+======================================================================
+import API from "./axiosInstance";
+
+export const getMyRisk = () =>
+  API.get("/detection/me");
+
+export const runScan = (userId) =>
+  API.post(`/detection/scan/${userId}`);
+
+export const getAllRiskyUsers = () =>
+  API.get("/detection/all");
+
+======================================================================
+FILE: frontend\src\api\loginLogsApi.js
+======================================================================
+import API from "./axiosInstance";
+
+export const getMyLoginLogs = () =>
+  API.get("/auth/login-logs");
+
+export const getAllLoginLogs = () =>
+  API.get("/admin/logs"); // admin only
+
+export default {
+  getMyLoginLogs,
+  getAllLoginLogs,
+};
+
+======================================================================
+FILE: frontend\src\api\postApi.js
+======================================================================
+import API from "./axiosInstance";
+
+export const createPost = (data) =>
+  API.post("/posts", data);
+
+export const getFeed = () =>
+  API.get("/posts");
+
+export const likePost = (postId) =>
+  API.post(`/posts/${postId}/like`);
+
+export const commentPost = (postId, data) =>
+  API.post(`/posts/${postId}/comment`, data);
+
+======================================================================
+FILE: frontend\src\api\profileApi.js
+======================================================================
+import API from "./axiosInstance";
+
+export const getProfile = () =>
+  API.get("/profile/me");
+
+export const updateProfile = (data) =>
+  API.put("/profile/update", data);
+
+export const uploadProfileImage = (formData) =>
+  API.post("/profile/upload", formData);

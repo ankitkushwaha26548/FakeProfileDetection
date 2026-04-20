@@ -92,6 +92,15 @@ export const loginUser = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        if (user.isBlocked) {
+            return res.status(403).json({
+                message: 'Your account has been blocked',
+                reason: user.blockReason || 'Your account has been blocked',
+                blockedAt: user.blockedAt,
+                isBlocked: true
+            });
+        }
+
         // Run side effects before sending response (so we don't double-send on error)
         try {
             await LoginLog.create({

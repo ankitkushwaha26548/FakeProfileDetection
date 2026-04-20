@@ -5,13 +5,13 @@ import * as adminApi from "../api/adminApi";
 
 const RiskChip = ({ risk }) => {
   const cfg = {
-    HIGH:   "text-red-400 bg-red-500/10 border-red-500/20",
-    MEDIUM: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
-    LOW:    "text-green-400 bg-green-500/10 border-green-500/20",
-  }[risk] || "text-gray-400 border border-[#1e1e30]";
+    HIGH:   "text-red-700 bg-red-50 border-red-200",
+    MEDIUM: "text-amber-700 bg-amber-50 border-amber-200",
+    LOW:    "text-green-700 bg-green-50 border-green-200",
+  }[risk] || "text-gray-500 bg-gray-50 border-gray-200";
 
   return (
-    <span className={`text-[10px] font-bold font-mono tracking-widest px-2 py-0.5 rounded border ${cfg}`}>
+    <span className={`text-[10px] font-bold font-mono tracking-widest px-2 py-0.5 rounded-full border ${cfg}`}>
       {risk}
     </span>
   );
@@ -55,19 +55,19 @@ export default function BehaviorAnalysis() {
   if (loading) return (
     <AdminLayout title="Behavior Analysis">
       <div className="flex items-center justify-center h-75">
-        <div className="w-7 h-7 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin" />
+        <div className="w-7 h-7 border-2 border-gray-200 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     </AdminLayout>
   );
 
   return (
     <AdminLayout title="Behavior Analysis">
-      <div className="grid grid-cols-[240px_1fr] gap-4 h-[calc(100vh-120px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 h-[calc(100vh-120px)]">
 
-        {/* User list */}
-        <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg overflow-hidden flex flex-col">
-          <div className="px-4 py-3 border-b border-[#1e1e30]">
-            <div className="text-[11px] text-[#44445a] font-medium tracking-wide">USERS</div>
+        {/* User List Panel */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Users</div>
           </div>
 
           <div className="overflow-auto flex-1">
@@ -79,18 +79,18 @@ export default function BehaviorAnalysis() {
                 <div
                   key={u._id}
                   onClick={() => setSelected(isActive ? null : u.user?._id)}
-                  className={`flex items-center gap-3 px-4 py-2 border-b border-[#13131f] cursor-pointer transition
-                    ${isActive ? "bg-[#13132a] border-l-2 border-indigo-400" : "hover:bg-[#0f0f1c]"}`}
+                  className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 cursor-pointer transition
+                    ${isActive ? "bg-indigo-50 border-l-4 border-indigo-500" : "hover:bg-gray-50"}`}
                 >
-                  <div className="w-7 h-7 rounded-full bg-[#13131f] flex items-center justify-center text-[11px] font-semibold text-indigo-400">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-700">
                     {(u.user?.name || "?")[0].toUpperCase()}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-[#e4e4ec] truncate">
+                    <div className="text-sm font-medium text-gray-800 truncate">
                       {u.user?.name}
                     </div>
-                    <div className="text-[11px] text-[#44445a]">
+                    <div className="text-xs text-gray-500">
                       {sig.total} actions
                     </div>
                   </div>
@@ -102,48 +102,52 @@ export default function BehaviorAnalysis() {
           </div>
         </div>
 
-        {/* Detail panel */}
+        {/* Detail Panel */}
         <div className="overflow-auto">
           {!selected && (
-            <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg flex flex-col items-center justify-center h-75 gap-3">
-              <Activity size={32} className="text-[#1e1e30]" />
-              <p className="text-sm text-[#44445a]">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col items-center justify-center h-75 gap-3">
+              <Activity size={32} className="text-gray-300" />
+              <p className="text-sm text-gray-400">
                 Select a user to view behavior signals
               </p>
             </div>
           )}
 
           {selected && sig && sel && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
 
-              {/* Header */}
-              <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#13131f] flex items-center justify-center text-sm font-semibold text-indigo-400">
+              {/* User Header */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-lg font-semibold text-indigo-700">
                   {(sel.user?.name || "?")[0].toUpperCase()}
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-[#e4e4ec]">{sel.user?.name}</div>
-                  <div className="text-xs text-[#44445a]">{sel.user?.email}</div>
+                  <div className="text-lg font-semibold text-gray-800">{sel.user?.name}</div>
+                  <div className="text-sm text-gray-500">{sel.user?.email}</div>
                 </div>
                 <RiskChip risk={sig.risk} />
               </div>
 
-              {/* Signal cards */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Signal Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  { label:"Total actions", value:sig.total, alert:false },
-                  { label:"Rapid actions", value:sig.rapid, alert:sig.risk !== "LOW" },
-                  { label:"Repetitive pattern", value:sig.repetitive ? "Yes" : "No", alert:sig.repetitive },
+                  { label: "Total actions", value: sig.total, alert: false },
+                  { label: "Rapid actions", value: sig.rapid, alert: sig.risk !== "LOW" },
+                  { label: "Repetitive pattern", value: sig.repetitive ? "Yes" : "No", alert: sig.repetitive },
                 ].map(card => (
-                  <div key={card.label}
-                    className={`rounded-lg p-4 border ${
+                  <div
+                    key={card.label}
+                    className={`rounded-xl p-4 border ${
                       card.alert
-                        ? "bg-red-500/5 border-red-500/20"
-                        : "bg-[#0e0e1a] border-[#1e1e30]"
-                    }`}>
-                    <div className="text-xs text-[#44445a] mb-1">{card.label}</div>
-                    <div className={`text-xl font-light ${
-                      card.alert ? "text-red-400" : "text-[#e4e4ec]"
+                        ? "bg-red-50 border-red-200"
+                        : "bg-white border-gray-200 shadow-sm"
+                    }`}
+                  >
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                      {card.label}
+                    </div>
+                    <div className={`text-2xl font-light ${
+                      card.alert ? "text-red-600" : "text-gray-800"
                     }`}>
                       {card.value}
                     </div>
@@ -152,27 +156,27 @@ export default function BehaviorAnalysis() {
               </div>
 
               {/* Verdict */}
-              <div className={`rounded-lg p-4 flex gap-3 border ${
+              <div className={`rounded-xl p-5 flex gap-4 border ${
                 sig.risk === "HIGH"
-                  ? "border-red-500/20"
+                  ? "border-red-200 bg-red-50"
                   : sig.risk === "MEDIUM"
-                  ? "border-yellow-500/20"
-                  : "border-[#1e1e30]"
+                  ? "border-amber-200 bg-amber-50"
+                  : "border-green-200 bg-green-50"
               }`}>
                 {sig.risk === "HIGH"
-                  ? <XCircle className="text-red-400 mt-1" size={16} />
+                  ? <XCircle className="text-red-600 mt-0.5" size={18} />
                   : sig.risk === "MEDIUM"
-                  ? <AlertTriangle className="text-yellow-400 mt-1" size={16} />
-                  : <CheckCircle className="text-green-400 mt-1" size={16} />
+                  ? <AlertTriangle className="text-amber-600 mt-0.5" size={18} />
+                  : <CheckCircle className="text-green-600 mt-0.5" size={18} />
                 }
 
                 <div>
-                  <div className={`text-sm font-medium mb-1 ${
+                  <div className={`text-base font-semibold mb-1 ${
                     sig.risk === "HIGH"
-                      ? "text-red-400"
+                      ? "text-red-700"
                       : sig.risk === "MEDIUM"
-                      ? "text-yellow-400"
-                      : "text-green-400"
+                      ? "text-amber-700"
+                      : "text-green-700"
                   }`}>
                     {sig.risk === "HIGH"
                       ? "Bot-like behavior detected"
@@ -181,7 +185,7 @@ export default function BehaviorAnalysis() {
                       : "Normal behavior pattern"}
                   </div>
 
-                  <div className="text-xs text-[#44445a] leading-relaxed">
+                  <div className="text-sm text-gray-600 leading-relaxed">
                     {sig.rapid} rapid actions in last 50 logged.
                     {sig.repetitive && ` Dominant action: ${sig.dominant}.`}
                     {sig.risk === "LOW" && " No anomalies found."}
@@ -189,28 +193,32 @@ export default function BehaviorAnalysis() {
                 </div>
               </div>
 
-              {/* Recent actions */}
-              <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-4">
-                <div className="text-[11px] text-[#44445a] font-medium tracking-wide mb-3 flex items-center gap-2">
-                  <Zap size={12} className="text-yellow-400" />
-                  RECENT ACTIONS
+              {/* Recent Actions */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Zap size={14} className="text-amber-500" />
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Recent actions
+                  </span>
                 </div>
 
                 {sig.recent.length === 0 && (
-                  <p className="text-xs text-[#44445a]">No activity recorded.</p>
+                  <p className="text-sm text-gray-400">No activity recorded.</p>
                 )}
 
-                {sig.recent.map((a, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-[#13131f] text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                      <span className="text-[#8a8a9e]">{actLabel[a.type] || a.type}</span>
+                <div className="divide-y divide-gray-100">
+                  {sig.recent.map((a, i) => (
+                    <div key={i} className="flex items-center justify-between py-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-indigo-400" />
+                        <span className="text-gray-700">{actLabel[a.type] || a.type}</span>
+                      </div>
+                      <span className="text-xs text-gray-400 font-mono">
+                        {a.createdAt ? new Date(a.createdAt).toLocaleString() : "—"}
+                      </span>
                     </div>
-                    <span className="text-[#44445a] font-mono text-[11px]">
-                      {a.createdAt ? new Date(a.createdAt).toLocaleString() : "—"}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
             </div>

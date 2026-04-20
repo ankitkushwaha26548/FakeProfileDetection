@@ -24,6 +24,16 @@ const riskScoreSchema = new mongoose.Schema({
     }
     ],
 
+    accountAgeDays: {
+        type: Number,
+        default: 0
+    },
+
+    confidence: {
+        type: Number,
+        default: 0
+    },
+
     lastUpdated: {
         type: Date,
         default: Date.now

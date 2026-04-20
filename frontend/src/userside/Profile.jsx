@@ -35,7 +35,7 @@ export default function Profile() {
         name, email:u.email||"", bio:profile?.bio||"",
         location:profile?.location||"",
         image: profile?.profileImage ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=312e81&color=fff`,
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff`,
       });
       setForm({ bio:profile?.bio||"", location:profile?.location||"", phone:profile?.phone||"", profileImage:profile?.profileImage||"" });
       setRisk(r.data || null);
@@ -54,58 +54,71 @@ export default function Profile() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const isFlagged = risk && risk.level !== "GENUINE";
-  const isFake    = risk?.level === "FAKE";
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await profileApi.updateProfile(form);
+      // Update local user state with new values
+      setUser(prev => ({
+        ...prev,
+        bio: form.bio,
+        location: form.location,
+        image: form.profileImage || prev.image,
+      }));
+      setEditOpen(false);
+      // Optional: reload page data to reflect changes fully
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to update profile", error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const standingColor  = isFlagged ? (isFake ? "#f87171" : "#f59e0b") : "#4ade80";
+const isFlagged = risk && risk.level !== "GENUINE";
+const isFake    = risk?.level === "FAKE";
+
+const standingColor = isFlagged
+  ? (isFake ? "#dc2626" : "#d97706")   // red-600, amber-600
+  : "#16a34a";                         // green-600
 
   if (loading) return (
-    <div className="min-h-screen bg-[#09090f]">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <UserHeader />
       <div className="flex items-center justify-center h-75">
-        <div className="w-6 h-6 border border-[#1e1e30] border-t-indigo-400 rounded-full animate-spin"></div>
+        <div className="w-6 h-6 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#09090f]">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <UserHeader />
 
-      <div className="max-w-170 mx-auto px-4 py-6">
-        <div
-          className="grid gap-3"
-          style={{
-            gridTemplateColumns:"1fr 1fr 1fr",
-            gridTemplateAreas:`"profile profile standing" "stats stats stats" "activity activity activity"`
-          }}
-        >
-
-          {/* Profile */}
-          <div
-            className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-5 flex items-center gap-4"
-            style={{ gridArea:"profile" }}
-          >
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="grid gap-5 md:grid-cols-3">
+          {/* Profile Card */}
+          <div className="md:col-span-2 bg-white rounded-2xl shadow-md border border-gray-200 p-6 flex flex-col sm:flex-row gap-5">
             <img src={user.image} alt={user.name}
-              className="w-14 h-14 rounded-full border border-[#1e1e30]" />
+              className="w-20 h-20 rounded-full border-2 border-indigo-100 object-cover" />
 
             <div className="flex-1 min-w-0">
-              <div className="text-base font-medium text-[#e4e4ec] mb-1">{user.name}</div>
+              <div className="text-xl font-semibold text-gray-800 mb-1">{user.name}</div>
 
               {user.email && (
-                <div className="text-xs text-[#44445a] flex items-center gap-1 mb-1">
-                  <Mail size={11} />{user.email}
+                <div className="text-sm text-gray-500 flex items-center gap-1.5 mb-1">
+                  <Mail size={14} /> {user.email}
                 </div>
               )}
 
               {user.location && (
-                <div className="text-xs text-[#44445a] flex items-center gap-1">
-                  <MapPin size={11} />{user.location}
+                <div className="text-sm text-gray-500 flex items-center gap-1.5 mb-1">
+                  <MapPin size={14} /> {user.location}
                 </div>
               )}
 
               {user.bio && (
-                <div className="text-xs text-[#8a8a9e] mt-2 leading-relaxed">
+                <div className="text-sm text-gray-600 mt-3 leading-relaxed">
                   {user.bio}
                 </div>
               )}
@@ -113,145 +126,142 @@ export default function Profile() {
 
             <button
               onClick={() => setEditOpen(true)}
-              className="px-3 py-1.5 bg-[#13131f] border border-[#1e1e30] rounded-md text-xs text-[#8a8a9e] flex items-center gap-1"
+              className="self-start px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-full text-sm text-gray-700 flex items-center gap-2 transition"
             >
-              <Edit3 size={11} />Edit
+              <Edit3 size={14} /> Edit
             </button>
           </div>
 
-          {/* Standing */}
-          <div
-            className="rounded-xl p-4 flex flex-col justify-center gap-2 border"
-            style={{ gridArea:"standing", borderColor:standingColor+"30", backgroundColor:standingColor+"10" }}
-          >
+          {/* Standing Card */}
+          <div className="bg-white rounded-2xl shadow-md border border-gray-200 p-5 flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              {isFake ? <XCircle size={14} style={{ color:standingColor }} />
-               : isFlagged ? <AlertTriangle size={14} style={{ color:standingColor }} />
-               : <ShieldCheck size={14} style={{ color:standingColor }} />}
-              <span className="text-xs font-semibold" style={{ color:standingColor }}>
+              {isFake ? <XCircle size={18} style={{ color: standingColor }} />
+               : isFlagged ? <AlertTriangle size={18} style={{ color: standingColor }} />
+               : <ShieldCheck size={18} style={{ color: standingColor }} />}
+              <span className="text-sm font-semibold" style={{ color: standingColor }}>
                 {risk?.level || "GENUINE"}
               </span>
             </div>
 
             {risk?.score !== undefined && (
               <>
-                <div className="text-3xl font-light" style={{ color:standingColor }}>
+                <div className="text-4xl font-light" style={{ color: standingColor }}>
                   {risk.score}
                 </div>
 
-                <div className="h-1 bg-white/5 rounded overflow-hidden">
-                  <div className="h-full rounded" style={{ width:`${Math.min(risk.score,100)}%`, background:standingColor }} />
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(risk.score, 100)}%`, background: standingColor }} />
                 </div>
 
-                <div className="text-[10px]" style={{ color:standingColor+"80" }}>
-                  {isFlagged ? "Review your activity" : "Looks good"}
+                <div className="text-xs text-gray-500">
+                  {isFlagged ? "Review your activity" : "Good standing"}
                 </div>
               </>
             )}
           </div>
 
-          {/* Stats */}
-          <div
-            className="grid gap-2"
-            style={{ gridArea:"stats", gridTemplateColumns:"repeat(3,1fr)" }}
-          >
+          {/* Stats Row */}
+          <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { icon:Activity, label:"Activities", value:stats.activities },
-              { icon:Smartphone, label:"Devices", value:stats.devices },
-              { icon:Clock, label:"Last login", value:stats.lastLogin, small:true },
-            ].map(({ icon:Icon, label, value, small }) => (
-              <div key={label} className="bg-[#0e0e1a] border border-[#1e1e30] rounded-lg p-3 flex items-center gap-3">
-                <Icon size={14} className="text-indigo-400" />
+              { icon: Activity, label: "Activities", value: stats.activities },
+              { icon: Smartphone, label: "Devices", value: stats.devices },
+              { icon: Clock, label: "Last login", value: stats.lastLogin, small: true },
+            ].map(({ icon: Icon, label, value, small }) => (
+              <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                  <Icon size={18} className="text-indigo-600" />
+                </div>
                 <div>
-                  <div className={`${small ? "text-xs" : "text-xl"} text-[#e4e4ec] font-light`}>
+                  <div className={`${small ? "text-sm" : "text-2xl"} font-semibold text-gray-800`}>
                     {value}
                   </div>
-                  <div className="text-[10px] text-[#44445a] mt-1">{label}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{label}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Activity */}
-          <div
-            className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-4"
-            style={{ gridArea:"activity" }}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-xs text-[#44445a] font-medium flex items-center gap-2">
-                <TrendingUp size={12} />
-                RECENT ACTIVITY
+          {/* Recent Activity */}
+          <div className="md:col-span-3 bg-white rounded-2xl shadow-md border border-gray-200 p-6">
+            <div className="flex justify-between items-center mb-5">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                <TrendingUp size={14} />
+                Recent Activity
               </div>
-              <Link to="/activity" className="text-xs text-indigo-400">
-                View all
+              <Link to="/activity" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+                View all →
               </Link>
             </div>
 
             {recentActs.length === 0 && (
-              <p className="text-xs text-[#44445a]">No activity yet.</p>
+              <p className="text-sm text-gray-400">No activity yet.</p>
             )}
 
-            <div className="flex flex-col gap-1">
-              {recentActs.map((a, i) => (
-                <div key={a.id} className={`flex justify-between items-center py-2 ${i<recentActs.length-1 ? "border-b border-[#0d0d18]" : ""}`}>
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
-                    <span className="text-xs text-[#8a8a9e]">{a.label}</span>
+            <div className="divide-y divide-gray-100">
+              {recentActs.map((a) => (
+                <div key={a.id} className="flex justify-between items-center py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
+                    <span className="text-sm text-gray-700">{a.label}</span>
                   </div>
-                  <span className="text-[11px] text-[#44445a] font-mono">{a.time}</span>
+                  <span className="text-xs text-gray-400 font-mono">{a.time}</span>
                 </div>
               ))}
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Edit Modal */}
       {editOpen && (
-        <div className="fixed inset-0 bg-black/75 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#0e0e1a] border border-[#1e1e30] rounded-xl p-6 w-full max-w-sm">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
             <div className="flex justify-between items-center mb-5">
-              <span className="text-sm font-medium text-[#e4e4ec]">Edit Profile</span>
-              <button onClick={() => setEditOpen(false)} className="text-[#44445a] text-lg">✕</button>
+              <h3 className="text-lg font-semibold text-gray-800">Edit Profile</h3>
+              <button onClick={() => setEditOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">
+                ✕
+              </button>
             </div>
 
             {[
-              { label:"Bio", key:"bio", multiline:true },
-              { label:"Location", key:"location" },
-              { label:"Phone", key:"phone" },
-              { label:"Profile image URL", key:"profileImage" },
+              { label: "Bio", key: "bio", multiline: true, rows: 3 },
+              { label: "Location", key: "location" },
+              { label: "Phone", key: "phone" },
+              { label: "Profile image URL", key: "profileImage" },
             ].map(f => (
               <div key={f.key} className="mb-4">
-                <label className="block text-[10px] text-[#44445a] font-semibold mb-1 uppercase">
+                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
                   {f.label}
                 </label>
 
                 {f.multiline ? (
                   <textarea
                     value={form[f.key]}
-                    rows={3}
-                    onChange={e => setForm(x => ({ ...x,[f.key]:e.target.value }))}
-                    className="w-full bg-[#09090f] border border-[#1e1e30] rounded-md px-3 py-2 text-sm text-[#e4e4ec] outline-none resize-none"
+                    rows={f.rows}
+                    onChange={e => setForm(x => ({ ...x, [f.key]: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
                   />
                 ) : (
                   <input
                     value={form[f.key]}
-                    onChange={e => setForm(x => ({ ...x,[f.key]:e.target.value }))}
-                    className="w-full bg-[#09090f] border border-[#1e1e30] rounded-md px-3 py-2 text-sm text-[#e4e4ec] outline-none"
+                    onChange={e => setForm(x => ({ ...x, [f.key]: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   />
                 )}
               </div>
             ))}
 
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => setEditOpen(false)} className="flex-1 py-2 border border-[#1e1e30] rounded-md text-sm text-[#8a8a9e]">
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditOpen(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-full text-sm text-gray-600 hover:bg-gray-50 transition"
+              >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 py-2 bg-indigo-400 rounded-md text-sm text-white font-medium"
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-full text-sm text-white font-medium transition disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save"}
               </button>
@@ -259,7 +269,6 @@ export default function Profile() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

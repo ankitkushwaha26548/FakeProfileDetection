@@ -31,7 +31,7 @@ export const getUsersWithRisk = async (req, res) => {
     const risks = await RiskScore.find()
       .populate({
         path: "user",
-        select: "name email role",
+        select: "name email role isBlocked blockReason blockedAt",
         match: { role: { $ne: 'admin' } }
       })
       .then(risks => risks.filter(risk => risk.user !== null)); // Remove risks where user was filtered out
@@ -154,16 +154,21 @@ export const blockUser = async (req, res) => {
     user.blockReason = reason || 'Fake account detected';
     await user.save();
 
-    //Also update risk profile to Fake 
-    await RiskScore.findOneAndUpdate(
-      { user: userId },
-      { 
+    // Also update or create risk profile as FAKE
+    const currentRisk = await RiskScore.findOne({ user: userId });
+    if (currentRisk) {
+      currentRisk.score = 100;
+      currentRisk.level = "FAKE";
+      currentRisk.reasons = [...currentRisk.reasons, "User blocked by admin"];
+      await currentRisk.save();
+    } else {
+      await RiskScore.create({
+        user: userId,
         score: 100,
-        Level : "FAKE",
-        reasons: [...(await RiskScore.findOne({ user: userId })).reasons, "User blocked by admin"]
-      },
-      { upsert: true }
-    );
+        level: "FAKE",
+        reasons: ["User blocked by admin"]
+      });
+    }
 
     res.status(200).json({
       message: "User blocked successfully",
@@ -184,26 +189,43 @@ export const blockUser = async (req, res) => {
 }
 
 // Unblock a user
-user. isBlocked = false;
-user. blockedAt = null;
-user. blockedBy = null;
-user. blockReason= null;
-await user.save();
+export const unblockUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
 
-res.status(200).json({ 
-  message: "User unblocked successfully",
-  user: {
-    id: user._id,
-    name: user.name,
-    email: user.email,
-    isBlocked: user.isBlocked
-  } 
-});
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-} catch (error) {
-  console.error('Unblock user error:', error);
-  res.status(500).json({ message: error.message });
-}
+    if (user.role === 'admin') {
+      return res.status(403).json({ message: "Cannot unblock admin users" });
+    }
+
+    if (!user.isBlocked) {
+      return res.status(400).json({ message: "User is not blocked" });
+    }
+
+    user.isBlocked = false;
+    user.blockedAt = null;
+    user.blockedBy = null;
+    user.blockReason = null;
+    await user.save();
+
+    res.status(200).json({ 
+      message: "User unblocked successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isBlocked: user.isBlocked
+      } 
+    });
+
+  } catch (error) {
+    console.error('Unblock user error:', error);
+    res.status(500).json({ message: error.message });
+  }
 };
 
 //Get all blocked users

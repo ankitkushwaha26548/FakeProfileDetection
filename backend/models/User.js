@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
 
     //add blocking functionality 
     isBlocked: {
@@ -38,12 +38,12 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         default: null
-    }
+    },
     blockReason: {
         type: String,
         default: null
     }
-    }, { 
+}, { 
     timestamps: true
 });
 
