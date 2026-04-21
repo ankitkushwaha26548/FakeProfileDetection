@@ -5,7 +5,14 @@ import { logActivity } from '../utils/activityLogger.js';
 import runDetection from '../utils/fakeDetection.js';
 import LoginLog from '../models/LoginLog.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'FPDFPDFPDFPD';
+// Helper function to ensure JWT_SECRET exists
+const getJWTSecret = () => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is not set');
+    }
+    return secret;
+};
 
 // Register User
 export const registerUser = async (req, res) => {
@@ -53,6 +60,7 @@ export const registerUser = async (req, res) => {
     }
 
     //token
+    const JWT_SECRET = getJWTSecret();
     const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
@@ -121,6 +129,7 @@ export const loginUser = async (req, res) => {
             console.error("Post-login tasks failed:", err.message);
         }
 
+        const JWT_SECRET = getJWTSecret();
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
         res.json({

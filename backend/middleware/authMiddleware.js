@@ -1,11 +1,16 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'FPDFPDFPDFPD';
-
 // Middleware to protect routes
 export const protect = async (req, res, next) => {
     try {
+        const JWT_SECRET = process.env.JWT_SECRET;
+        
+        if (!JWT_SECRET) {
+            console.error('ERROR: JWT_SECRET environment variable is not set!');
+            return res.status(500).json({ message: 'Server configuration error' });
+        }
+
         const token = req.header('Authorization')?.replace('Bearer ', '');
 
         if (!token) {

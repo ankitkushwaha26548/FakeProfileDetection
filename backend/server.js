@@ -16,7 +16,7 @@ connectDB();
 
 const app = express();
 app.use(cors({
-  origin: ['http://localhost:5000', 'http://localhost:3000', 'http://localhost:5001', 'http://127.0.0.1:5001'],
+  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : ['http://localhost:5000', 'http://localhost:3000', 'http://localhost:5001', 'http://127.0.0.1:5001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -46,11 +46,11 @@ app.use(errorHandler);
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/dist')));
-  app.get('*', (req, res) => {
+  app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
   });
 }
 
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT , 'localhost' , () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
