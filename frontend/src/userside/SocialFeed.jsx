@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Heart, MessageCircle, Share2, Send, MoreHorizontal } from "lucide-react";
 import UserHeader from "../components/UserHeader";
@@ -19,7 +19,7 @@ export default function SocialFeed() {
   const [commentText, setCommentText] = useState({});
   const uid = myId();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await postApi.getFeed();
@@ -49,11 +49,11 @@ export default function SocialFeed() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [uid]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const handleLike = async (id) => {
     await postApi.likePost(id);

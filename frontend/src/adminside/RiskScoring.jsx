@@ -15,7 +15,12 @@ const ScoreBar = ({ score, level }) => {
   };
 
   const barColor = getColor();
-  const textColor = barColor.replace("bg-", "text-");
+  const textColor =
+    barColor === "bg-red-500"
+      ? "text-red-800"
+      : barColor === "bg-amber-500"
+        ? "text-amber-800"
+        : "text-green-800";
 
   return (
     <div className="flex items-center gap-2 flex-1">
@@ -142,7 +147,7 @@ export default function RiskScoring() {
             <div
               onClick={() => setExpanded(expanded === u._id ? null : u._id)}
               className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition ${
-                expanded === u._id ? "bg-indigo-50" : "hover:bg-gray-50"
+                expanded === u._id ? "bg-indigo-50" : "hover:bg-gray-100"
               }`}
             >
               <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-semibold">
@@ -151,7 +156,7 @@ export default function RiskScoring() {
 
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-800">{u.user?.name}</div>
-                <div className="text-xs text-gray-500">{u.user?.email}</div>
+                <div className="text-xs text-gray-600">{u.user?.email}</div>
               </div>
 
               <div className="w-40 flex">
@@ -161,8 +166,8 @@ export default function RiskScoring() {
               <RiskBadge level={u.level} />
 
               {expanded === u._id
-                ? <ChevronUp size={14} className="text-gray-400" />
-                : <ChevronDown size={14} className="text-gray-400" />}
+                ? <ChevronUp size={14} className="text-gray-600" />
+                : <ChevronDown size={14} className="text-gray-600" />}
             </div>
 
             {/* Expanded Details */}

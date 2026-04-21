@@ -95,7 +95,7 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      const { data } = await authApi.registerUser({
+      await authApi.registerUser({
         name: formData.name,
         email: formData.email,
         password: formData.password,

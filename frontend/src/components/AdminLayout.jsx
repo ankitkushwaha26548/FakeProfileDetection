@@ -13,6 +13,31 @@ const NAV = [
   { to: "/admin/lookup",        icon: Search,          label: "Quick Lookup" },
 ];
 
+function NavLinks({ pathname, onNavigate }) {
+  return (
+    <>
+      {NAV.map(({ to, icon, label }) => {
+        const active = pathname === to;
+        return (
+          <Link
+            key={to}
+            to={to}
+            onClick={onNavigate}
+            className={`flex items-center gap-2.5 px-5 py-2 text-sm font-medium transition-all border-l-2
+              ${active
+                ? "text-indigo-700 bg-indigo-50 border-indigo-600"
+                : "text-gray-600 border-transparent hover:text-indigo-600 hover:bg-gray-50"
+              }`}
+          >
+            {React.createElement(icon, { size: 16 })}
+            {label}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
 export default function AdminLayout({ children, title }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -23,29 +48,7 @@ export default function AdminLayout({ children, title }) {
     localStorage.removeItem("user");
     navigate("/login");
   };
-
-  const NavLinks = () => (
-    <>
-      {NAV.map(({ to, icon: Icon, label }) => {
-        const active = location.pathname === to;
-        return (
-          <Link
-            key={to}
-            to={to}
-            onClick={() => setMobileOpen(false)}
-            className={`flex items-center gap-2.5 px-5 py-2 text-sm font-medium transition-all border-l-2
-              ${active
-                ? "text-indigo-700 bg-indigo-50 border-indigo-600"
-                : "text-gray-600 border-transparent hover:text-indigo-600 hover:bg-gray-50"
-              }`}
-          >
-            <Icon size={16} />
-            {label}
-          </Link>
-        );
-      })}
-    </>
-  );
+  const closeMobile = () => setMobileOpen(false);
 
   const currentPage =
     NAV.find(n => n.to === location.pathname)?.label ||
@@ -66,7 +69,7 @@ export default function AdminLayout({ children, title }) {
         </div>
 
         <nav className="flex-1 mt-4 space-y-1">
-          <NavLinks />
+          <NavLinks pathname={location.pathname} onNavigate={closeMobile} />
         </nav>
 
         {/* Footer */}
@@ -101,7 +104,7 @@ export default function AdminLayout({ children, title }) {
               </button>
             </div>
             <nav className="flex-1 mt-2 space-y-1">
-              <NavLinks />
+              <NavLinks pathname={location.pathname} onNavigate={closeMobile} />
             </nav>
           </div>
         </>

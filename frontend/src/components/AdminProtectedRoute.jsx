@@ -3,14 +3,11 @@ import { Navigate } from "react-router-dom";
 import * as authApi from "../api/authApi";
 
 const AdminProtectedRoute = ({ children }) => {
-  const [status, setStatus] = useState("loading"); // loading | admin | forbidden
   const token = localStorage.getItem("token");
+  const [status, setStatus] = useState(() => (token ? "loading" : "forbidden")); // loading | admin | forbidden
 
   useEffect(() => {
-    if (!token) {
-      setStatus("forbidden");
-      return;
-    }
+    if (!token) return;
     authApi
       .getCurrentUser()
       .then((res) => {

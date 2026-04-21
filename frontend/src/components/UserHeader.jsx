@@ -36,7 +36,7 @@ export default function UserHeader() {
 
           {/* Desktop Navigation (hidden on mobile) */}
           <nav className="hidden md:flex items-center gap-1">
-            {NAV.map(({ to, icon: Icon, label }) => {
+            {NAV.map(({ to, icon, label }) => {
               const active = isActive(to);
               return (
                 <Link
@@ -48,7 +48,7 @@ export default function UserHeader() {
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 >
-                  <Icon size={16} />
+                  {React.createElement(icon, { size: 16 })}
                   <span className="hidden sm:inline">{label}</span>
                 </Link>
               );
@@ -74,7 +74,7 @@ export default function UserHeader() {
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <nav className="md:hidden bg-white border-t border-gray-200 py-2 shadow-lg rounded-b-xl">
-            {NAV.map(({ to, icon: Icon, label }) => {
+            {NAV.map(({ to, icon, label }) => {
               const active = isActive(to);
               return (
                 <Link
@@ -87,7 +87,7 @@ export default function UserHeader() {
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
-                  <Icon size={18} />
+                  {React.createElement(icon, { size: 18 })}
                   {label}
                 </Link>
               );

@@ -1,57 +1,37 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-// Middleware to protect routes
+const JWT_SECRET = process.env.JWT_SECRET ?? 'FPDFPDFPDFPD';
+
 export const protect = async (req, res, next) => {
-    try {
-        const JWT_SECRET = process.env.JWT_SECRET;
-        
-        if (!JWT_SECRET) {
-            console.error('ERROR: JWT_SECRET environment variable is not set!');
-            return res.status(500).json({ message: 'Server configuration error' });
-        }
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
-        const token = req.header('Authorization')?.replace('Bearer ', '');
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
+    if (!user) return res.status(401).json({ message: 'User not found' });
+    if (user.isBlocked) {
+      return res.status(403).json({
+        message: 'Your account has been blocked',
+        reason: user.blockReason ?? 'Blocked by admin',
+        blockedAt: user.blockedAt,
+        isBlocked: true
+      });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    res.status(401).json({ message: 'Token is not valid' });
+  }
+};
 
-        if (!token) {
-            return res.status(401).json({ message: 'No token, authorization denied' });
-        }
-
-        const decoded = jwt.verify(token, JWT_SECRET);
-        req.user = await User.findById(decoded.id).select('-password');
-
-        if (!req.user) {
-            return res.status(401).json({ message: 'User not found' });
-        }
-
-        if (req.user.isBlocked) {
-            return res.status(403).json({
-                message: 'Your account has been blocked',
-                reason: req.user.blockReason || 'Blocked by admin',
-                blockedAt: req.user.blockedAt,
-                isBlocked: true
-            });
-        }
-
-        next();
-     } catch (err) {
-        res.status(401).json({ message: 'Token is not valid' });
-     }  
-    };
-
-// Middleware to restrict access to specific roles
-export const authorize = (...roles) => {
-    return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({ message: 'Not authenticated' });
-        }
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({ 
-                message: `User role ${req.user.role} is not authorized to access this route` 
-            });
-        }
-        next();
-    }; 
+export const authorize = (...roles) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Not authenticated' });
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ message: `User role ${req.user.role} is not authorized to access this route` });
+  }
+  next();
 };
 
 export default protect;

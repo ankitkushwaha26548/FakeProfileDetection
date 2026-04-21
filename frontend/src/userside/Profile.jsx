@@ -4,9 +4,18 @@ import { Mail, MapPin, Edit3, TrendingUp, ShieldCheck, AlertTriangle, XCircle,
 import { Link } from "react-router-dom";
 import UserHeader from "../components/UserHeader";
 import * as profileApi from "../api/profileApi";
+import * as authApi from "../api/authApi";
 import * as detectionApi from "../api/detectionApi";
 import * as activityApi from "../api/activityApi";
 import * as loginLogsApi from "../api/loginLogsApi";
+
+const LABELS = {
+  LOGIN: "Logged in",
+  POST: "Created a post",
+  LIKE_POST: "Liked a post",
+  COMMENT: "Commented",
+  REGISTER: "Account created",
+};
 
 export default function Profile() {
   const [loading, setLoading]   = useState(true);
@@ -18,19 +27,25 @@ export default function Profile() {
   const [recentActs, setRecentActs] = useState([]);
   const [form, setForm]         = useState({ bio:"", location:"", phone:"", profileImage:"" });
 
-  const LABELS = { LOGIN:"Logged in", POST:"Created a post", LIKE_POST:"Liked a post",
-                   COMMENT:"Commented", REGISTER:"Account created" };
-
   useEffect(() => {
+    const storedUser = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("user") || "{}");
+      } catch {
+        return {};
+      }
+    })();
+
     Promise.all([
       profileApi.getProfile(),
+      authApi.getCurrentUser().catch(() => ({ data: null })),
       detectionApi.getMyRisk().catch(() => ({ data:null })),
       activityApi.getMyActivities().catch(() => ({ data:[] })),
       loginLogsApi.getMyLoginLogs().catch(() => ({ data:[] })),
-    ]).then(([p, r, a, l]) => {
+    ]).then(([p, me, r, a, l]) => {
       const profile = p.data;
-      const u = profile?.user || {};
-      const name = u.name || "User";
+      const u = profile?.user || me?.data || storedUser || {};
+      const name = u.name || u.email?.split("@")?.[0] || "User";
       setUser({
         name, email:u.email||"", bio:profile?.bio||"",
         location:profile?.location||"",
@@ -166,10 +181,10 @@ const standingColor = isFlagged
               { icon: Activity, label: "Activities", value: stats.activities },
               { icon: Smartphone, label: "Devices", value: stats.devices },
               { icon: Clock, label: "Last login", value: stats.lastLogin, small: true },
-            ].map(({ icon: Icon, label, value, small }) => (
+            ].map(({ icon, label, value, small }) => (
               <div key={label} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-                  <Icon size={18} className="text-indigo-600" />
+                  {React.createElement(icon, { size: 18, className: "text-indigo-600" })}
                 </div>
                 <div>
                   <div className={`${small ? "text-sm" : "text-2xl"} font-semibold text-gray-800`}>

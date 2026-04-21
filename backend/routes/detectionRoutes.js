@@ -5,11 +5,8 @@ import { runDetectionForUser, getMyRisk, getAllRiskyUsers } from '../controllers
 
 const router = express.Router();
 
-// User: get own risk
-router.get("/me", protect, getMyRisk);
-
-// Admin: manual scan and all risky users
-router.post("/scan/:userId", protect, adminMiddleware, runDetectionForUser);
-router.get("/all", protect, adminMiddleware, getAllRiskyUsers);
+router.get('/me', protect, getMyRisk);
+router.post('/scan/:userId', protect, adminMiddleware, runDetectionForUser);
+router.get('/all', protect, adminMiddleware, getAllRiskyUsers);
 
 export default router;

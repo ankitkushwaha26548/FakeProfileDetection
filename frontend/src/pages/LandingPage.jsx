@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Shield, Activity, Globe, LayoutDashboard, ArrowRight } from "lucide-react";
-import logo from "../assets/detect.png";
 
 const FEATURES = [
   { icon: Shield, label: "Risk scoring", desc: "0–100 score per account. Genuine, Suspicious, or Fake.", to: "/admin/risk" },
@@ -89,13 +88,13 @@ export default function LandingPage() {
           Detection capabilities — all in admin panel
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {FEATURES.map(({ icon: Icon, label, desc, to }) => (
+          {FEATURES.map(({ icon, label, desc, to }) => (
             <Link
               key={to}
               to={to}
               className="group flex gap-4 p-5 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200"
             >
-              <Icon size={18} className="text-indigo-500 shrink-0 mt-0.5" />
+              {React.createElement(icon, { size: 18, className: "text-indigo-500 shrink-0 mt-0.5" })}
               <div>
                 <div className="text-sm font-semibold text-gray-800 mb-1 group-hover:text-indigo-600 transition">
                   {label}

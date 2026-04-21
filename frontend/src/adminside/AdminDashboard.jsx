@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Activity, Globe, Shield, Search, Eye, Flag, ShieldOff, CheckCircle } from "lucide-react";
+import { Activity, Globe, Shield, Search, Eye, ShieldOff, CheckCircle } from "lucide-react";
 import AdminLayout from "../components/AdminLayout";
 import * as adminApi from "../api/adminApi";
 
@@ -39,8 +39,6 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("ALL");
-  const [flagging, setFlagging] = useState(null);
-  const [blocking, setBlocking] = useState(null);
   const [showBlockModal, setShowBlockModal] = useState(null);
   const [blockReason, setBlockReason] = useState("Fake account detected");
 
@@ -53,14 +51,6 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleFlag = async (userId, name) => {
-    if (!window.confirm(`Flag ${name} as FAKE?`)) return;
-    setFlagging(userId);
-    await adminApi.flagUser(userId);
-    setUsers(prev => prev.map(u => u.user?._id === userId ? { ...u, level: "FAKE", score: 100 } : u));
-    setFlagging(null);
-  };
-
   const handleBlockClick = (user) => {
     setShowBlockModal(user);
     setBlockReason("Fake account detected");
@@ -68,7 +58,6 @@ export default function AdminDashboard() {
 
   const confirmBlock = async () => {
     if (!showBlockModal) return;
-    setBlocking(showBlockModal.user?._id);
     try {
       await adminApi.blockUser(showBlockModal.user?._id, blockReason);
       setUsers(prev => prev.map(u =>
@@ -77,23 +66,18 @@ export default function AdminDashboard() {
           : u
       ));
       setShowBlockModal(null);
-    } catch (error) {
+    } catch {
       alert("Failed to block user");
-    } finally {
-      setBlocking(null);
     }
   };
 
   const handleUnblock = async (userId) => {
     if (!window.confirm("Are you sure you want to unblock this user?")) return;
-    setBlocking(userId);
     try {
       await adminApi.unblockUser(userId);
       setUsers(prev => prev.map(u => u.user?._id === userId ? { ...u, user: { ...u.user, isBlocked: false } } : u));
-    } catch (error) {
+    } catch {
       alert("Failed to unblock user");
-    } finally {
-      setBlocking(null);
     }
   };
 
@@ -149,12 +133,12 @@ export default function AdminDashboard() {
               { to: "/admin/ip-monitoring", icon: Globe, label: "IP Monitor" },
               { to: "/admin/risk", icon: Shield, label: "Risk Scoring" },
               { to: "/admin/lookup", icon: Search, label: "Lookup" },
-            ].map(({ to, icon: Icon, label }) => (
+            ].map(({ to, icon, label }) => (
               <Link
                 key={to} to={to}
                 className="flex items-center gap-2 px-3 py-2.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition shadow-sm"
               >
-                <Icon size={14} className="text-indigo-500" />
+                {React.createElement(icon, { size: 14, className: "text-indigo-500" })}
                 <span className="font-semibold">{label}</span>
               </Link>
             ))}

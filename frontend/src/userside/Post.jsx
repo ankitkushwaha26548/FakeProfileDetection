@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Heart, MessageCircle, Send, MoreHorizontal, AlertTriangle, X } from "lucide-react";
 import UserHeader from "../components/UserHeader";
 import * as postApi from "../api/postApi";
@@ -23,7 +23,7 @@ export default function Post() {
   const timer = useRef(null);
   const uid = myId();
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await postApi.getFeed();
@@ -52,11 +52,11 @@ export default function Post() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [uid]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const showWarn = (level, msg) => {
     if (level === "GENUINE") return;
@@ -82,7 +82,9 @@ export default function Post() {
               ? "Your account has been flagged for unusual activity."
               : "Unusual activity detected. Slow down to stay in good standing."
           );
-      } catch {}
+      } catch {
+        // Detection warnings are best-effort; posting should still succeed.
+      }
       load();
     } finally {
       setPosting(false);

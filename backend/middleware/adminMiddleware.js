@@ -1,18 +1,11 @@
 const adminMiddleware = (req, res, next) => {
-    try {
-    if (!req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
-      console.log("Not authenticated");
-    }
-
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Admin access only" });
-    }
-
-    next();
-  } catch (error) {
-    res.status(500).json({ message: "Admin middleware error" });
+  if (!req.user) {
+    return res.status(401).json({ message: 'Not authenticated' });
   }
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access only' });
+  }
+  next();
 };
 
-export default adminMiddleware
+export default adminMiddleware;
