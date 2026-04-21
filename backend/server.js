@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import fs from "fs";
 import connectDB from "./config/db.js";
 import dotenv from "dotenv";
 import path from "path";
@@ -52,9 +53,6 @@ app.use(
   })
 );
 
-// Handle preflight requests
-app.options('*', cors());
-
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -93,11 +91,14 @@ app.use("/api/detection", detectionRoutes);
 app.use("/api/admin", adminRoutes);
 
 // 404 handler for API routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
-    message: 'API endpoint not found',
-    path: req.path 
-  });
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ 
+      message: 'API endpoint not found',
+      path: req.path 
+    });
+  }
+  next();
 });
 
 // Serve frontend (production only)
@@ -105,11 +106,11 @@ if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "../frontend/dist");
   
   // Check if dist folder exists
-  if (require('fs').existsSync(frontendPath)) {
+  if (fs.existsSync(frontendPath)) {
     app.use(express.static(frontendPath));
     
-    // Catch-all route for SPA
-    app.get("*", (req, res) => {
+    // Catch-all route for SPA (using regex for Express 5.x compatibility)
+    app.get(/.*/,  (req, res) => {
       res.sendFile(path.join(frontendPath, "index.html"));
     });
   } else {
