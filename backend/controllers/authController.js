@@ -7,6 +7,7 @@ import LoginLog from '../models/LoginLog.js';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'FPDFPDFPDFPD';
 
+// Helper function to create a login log entry
 const createLoginLog = async (userId, req) => LoginLog.create({
   user: userId,
   ip: req.ip ?? '127.0.0.1',

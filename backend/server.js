@@ -12,10 +12,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 
-const allowedOrigins = process.env.FRONTEND_URL?.split(',').map(url => url.trim()) ?? ['http://localhost:5000'];
+const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:5000,http://localhost:5173')
+  .split(',')
+  .map(url => url.trim().replace(/\/$/, ''))
+  .filter(Boolean);
 
 app.use(cors({
-  origin: (origin, callback) => allowedOrigins.includes(origin) ? callback(null, true) : callback(new Error('CORS denied')),
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('CORS denied'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
